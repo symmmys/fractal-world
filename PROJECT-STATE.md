@@ -272,3 +272,70 @@ Environmental systems remain independently responsible for their own simulation 
 
 The field infrastructure provides shared environmental information and mathematical relationships without imposing unnecessary dependencies between subsystems.
 
+2026-11-04 12:47 PM
+Current project tree:
+
+.
+├── assets
+│   └── 0_somnium_map_topographic.png
+├── index.html
+├── PROJECT-STATE.md
+└── src
+    ├── atmosphere
+    │   ├── cloud-generator.js
+    │   ├── cloud.js
+    │   ├── cloud-species.js
+    │   └── cloud-system.js
+    ├── core
+    │   ├── genetics.js
+    │   ├── noise.js
+    │   ├── random.js
+    │   └── species.js
+    ├── ecology
+    │   ├── forest.js
+    │   ├── tree-generator.js
+    │   └── tree.js
+    ├── environment
+    │   ├── environment.js
+    │   ├── spatial-grid.js
+    │   └── terrain.js
+    ├── geology
+    │   ├── geological-field.js
+    │   ├── geological-manager.js
+    │   ├── rock-generator.js
+    │   ├── rock-species.js
+    │   └── surface-deposit-system.js
+    ├── main.js
+    ├── rendering
+    │   ├── cloud-renderer.js
+    │   ├── rock-renderer.js
+    │   ├── surface-deposit-renderer.js
+    │   ├── thin-instance-renderer.js
+    │   └── tree-renderers.js
+    ├── scene
+    │   └── create-scene.js
+    ├── water
+    │   ├── hydrology.js
+    │   ├── rain-system.js
+    │   └── water-system.js
+    └── world
+        ├── fields
+        │   ├── field-registry.js
+        │   ├── field-sampler.js
+        │   ├── geometry
+        │   │   ├── euclidean-geometry.js
+        │   │   ├── geodesic-solver.js
+        │   │   ├── geometry-model.js
+        │   │   └── poincare-geometry.js
+        │   ├── material-field.js
+        │   ├── metric-tensor.js
+        │   ├── physical-properties.js
+        │   ├── spacetime-field.js
+        │   ├── spatial-lattice.js
+        │   ├── temperature-field.js
+        │   ├── world-field.js
+        │   └── world-field-system.js
+        ├── world-chunk.js
+        └── world-manager.js
+
+14 directories, 48 files
