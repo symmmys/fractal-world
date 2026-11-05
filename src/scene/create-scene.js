@@ -1,144 +1,617 @@
-import { Forest } from "../ecology/forest.js"
 
-function createScene( engine, canvas){
+import { HeightmapTerrain } from "../environment/heightmap-terrain.js";
+import { WorldManager } from "../world/world-manager.js";
+import { ChunkEcologySystem } from "../world/chunk-ecology-system.js";
+import { ChunkGeologySystem } from "../world/chunk-geology-system.js";
+import { AdaptiveGraphicsController } from "../rendering/adaptive-graphics-controller.js";
+import { WaterSystem } from "../water/water-system.js";
+import { Hydrology } from "../water/hydrology.js";
+import { RainSystem } from "../water/rain-system.js";
+import { ChunkCloudSystem } from "../world/chunk-cloud-system.js";
+
+import { SpatialTransform } from "../world/fields/geometry/spatial-transform.js";
+import { GeometryRenderer } from "../world/fields/geometry/geometry-renderer.js";
+import { GeometryShaderManager } from "../world/fields/geometry/geometry-shader-manager.js";
+import { HyperbolicCameraController } from "../world/fields/geometry/hyperbolic-camera-controller.js";
+
+import { GameManager } from "../game/game-manager.js";
+import { PlayerCharacter } from "../game/player-character.js";
+import { PlayerController } from "../game/player-controller.js";
+import { CharacterCameraController } from "../game/camera-controller.js";
+import { MainMenu } from "../ui/main-menu.js";
+import { CelestialSystem } from "../environment/celestial-system.js";
 
 
-	console.log("[createScene] initialize scene...");
-	var scene = new BABYLON.Scene(engine);
+async function createScene(engine, canvas) {
+    console.log("[Scene] Initializing Somnium...");
 
-	const seaLevel = -100;
+    const scene = new BABYLON.Scene(engine);
 
-const instrumentationOn = false;
-const instrumentation = new BABYLON.SceneInstrumentation(scene);
-
-instrumentation.captureFrameTime = true;
-instrumentation.captureRenderTime = true;
-instrumentation.captureActiveMeshesEvaluationTime = true;
-instrumentation.captureDrawCalls = true;
-
-
-    var camera = new BABYLON.FreeCamera("Camera", new BABYLON.Vector3(0, 200, -10), scene);
-    scene.activeCamera = camera;
-    camera.setTarget(new BABYLON.Vector3(0, 1, 0));
-    camera.attachControl(canvas, true);
-
-
-	const sun = new BABYLON.DirectionalLight(
-		"sun",
-		new BABYLON.Vector3(-0.5, -1, -0.3),
-		scene
+	scene.clearColor = new BABYLON.Color4(
+		0.003, 0.006, 0.022, 1
 	);
 
-	
-// Shadow configuration
-sun.position = new BABYLON.Vector3(100, 200, 100);
+    const WORLD_SIZE = 40000;
+    const CHUNK_SIZE = 2000;
 
-sun.intensity = 1.0;
+    // -----------------------------------------
+    // LIGHTING
+    // -----------------------------------------
 
-const shadowGenerator = new BABYLON.ShadowGenerator(
-    1024,
-    sun
+
+	// -----------------------------------------
+// CELESTIAL LIGHTING
+// -----------------------------------------
+
+const sunDirection = new BABYLON.Vector3(
+    -0.5, -1, -0.3
+).normalize();
+
+const sun = new BABYLON.DirectionalLight(
+    "sun",
+    sunDirection.clone(),
+    scene
 );
 
-shadowGenerator.useBlurExponentialShadowMap = true;
-shadowGenerator.blurScale = 2;
-shadowGenerator.blurKernel = 16;
+const ambient = new BABYLON.HemisphericLight(
+    "ambient",
+    new BABYLON.Vector3(0, 1, 0),
+    scene
+);
 
-shadowGenerator.bias = 0.0005;
-shadowGenerator.normalBias = 0.02;
-
-
-	const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap(
-        "ground",
-        "../../assets/0_somnium_map_topographic.png",
-        {
-            width: 1500,
-            height: 1500,
-            subdivisions: 100,
-            minHeight: -2000,
-            maxHeight: 1000,
-		onReady: () => {
-
-            console.log("Terrain successfully generated!");
-
-const forest = new Forest(
+const celestial = new CelestialSystem(
     scene,
-    ground,
-    sun.direction,
-    shadowGenerator,
-    seaLevel
-);
-            // Generate 80 trees
-            forest.generate(80, 3);
-		// Advance the forest by one simulated year
-			let elapsed = 0;
-			
-
-			const liveGeneration = true;
-scene.onBeforeRenderObservable.add(() => {
-
-    elapsed += engine.getDeltaTime() / 1000;
-
-    // One simulated year every five real seconds
-	if (liveGeneration){
-    if (elapsed >= 5) {
-
-        elapsed = 0;
-
-	var numLivingTrees = forest.trees.filter(t => t.alive).length;
-	const livingTreeAdvancementThreshold = 1000;
-	if (numLivingTrees < livingTreeAdvancementThreshold) {
-		forest.advance(1);
-	}
-
-        console.log(
-            "Living trees:",
-		numLivingTrees
-        );
+    {
+        sunLight: sun,
+        ambientLight: ambient,
+        dayLength: 900,
+        orbitDistance: 45000,
+        skyRadius: 90000,
+        sunSize: 1800,
+        moonSize: 1300
     }
-	}
+);
 
-	if (instrumentationOn) {
-		if (Math.random() < 0.02) {
+scene.metadata = {
+    ...(scene.metadata || {}),
+    celestial
+};
+    // -----------------------------------------
+    // HEIGHTMAP
+    // -----------------------------------------
 
-		    console.table({
+    const terrain = new HeightmapTerrain({
+        url: "./assets/0_somnium_map_topographic.png",
+        worldSize: WORLD_SIZE,
+        minHeight: -2000,
+        maxHeight: 1000,
+        heightChannel: "average"
+    });
 
-			FPS: engine.getFps().toFixed(1),
+    await terrain.load();
 
-			frameTime:
-			    instrumentation.frameTimeCounter.current.toFixed(2),
+    // -----------------------------------------
+    // SPATIAL TRANSFORM
+    // -----------------------------------------
 
-			renderTime:
-			    instrumentation.renderTimeCounter.current.toFixed(2),
+    const spatialTransform = new SpatialTransform({
+        geometry: "poincare",
+        renderScale: 10000,
 
-			activeMeshesTime:
-			    instrumentation.activeMeshesEvaluationTimeCounter.current.toFixed(2),
-
-			drawCalls:
-			    instrumentation.drawCallsCounter.current
-
-		    });
-
-		}
-	}
-
-
-
-});
-
+        bounds: {
+            minX: terrain.min.x,
+            maxX: terrain.max.x,
+            minY: -WORLD_SIZE / 2,
+            maxY: WORLD_SIZE / 2,
+            minZ: terrain.min.z,
+            maxZ: terrain.max.z,
+            characteristicLength: 0.25
         }
-        },
-        scene,
+    });
 
-        // IMPORTANT: wait until terrain geometry is ready
+    // -----------------------------------------
+    // GEOMETRY RENDERER
+    // -----------------------------------------
+
+    const geometryRenderer = new GeometryRenderer(
+        scene,
+        spatialTransform
     );
 
-ground.receiveShadows = true;
+    const geometryShaderManager =
+        new GeometryShaderManager(
+            scene,
+            spatialTransform,
+            {
+                enabled: true,
+                renderScale: spatialTransform.renderScale
+            }
+        );
 
-	// Directional sunlight
+    // -----------------------------------------
+    // FLIGHT CAMERA
+    // -----------------------------------------
 
+    const camera = new BABYLON.FreeCamera(
+        "FlightCamera",
+        BABYLON.Vector3.Zero(),
+        scene
+    );
 
+    camera.minZ = 1;
+    camera.maxZ = 100000;
+    camera.speed = 500;
+    camera.angularSensibility = 3000;
 
-	return scene;
+    const initialCameraPosition =
+        spatialTransform.worldToRender({
+            x: 0,
+            y: 1800,
+            z: -3000
+        });
+
+    camera.position.set(
+        initialCameraPosition.x,
+        initialCameraPosition.y,
+        initialCameraPosition.z
+    );
+
+    camera.setTarget(BABYLON.Vector3.Zero());
+
+    // -----------------------------------------
+    // HYPERBOLIC FLIGHT CAMERA
+    // -----------------------------------------
+
+    const hyperbolicCamera =
+        new HyperbolicCameraController(
+            camera,
+            spatialTransform,
+            {
+                maxHyperbolicSpeed: 2.5,
+                boundaryMargin: 1e-7
+            }
+        );
+
+    // Synchronize after initial camera positioning.
+    hyperbolicCamera.synchronize();
+
+    // -----------------------------------------
+    // THIRD-PERSON CAMERA
+    // -----------------------------------------
+
+    const thirdPersonCamera = new BABYLON.FreeCamera(
+        "ThirdPersonCamera",
+        BABYLON.Vector3.Zero(),
+        scene
+    );
+
+    thirdPersonCamera.minZ = 0.5;
+    thirdPersonCamera.maxZ = 100000;
+
+    // -----------------------------------------
+    // PLAYER CHARACTER
+    // -----------------------------------------
+
+    const playerCharacter = new PlayerCharacter(
+        scene,
+        spatialTransform,
+        {
+            x: 0,
+            z: 0,
+            terrain
+        }
+    );
+
+    const playerController = new PlayerController(
+        playerCharacter,
+        terrain,
+        canvas,
+        {
+            walkSpeed: 180,
+            runSpeed: 360,
+            turnSpeed: 2.2
+        }
+    );
+
+	const characterCameraController =
+    new CharacterCameraController(
+        scene,
+        thirdPersonCamera,
+        playerCharacter,
+        spatialTransform,
+        {
+            distance: 24,
+            height: 8,
+
+            minDistance: 6,
+            maxDistance: 120,
+
+            zoomSensitivity: 0.001,
+            smoothing: 8
+        }
+    );
+    // -----------------------------------------
+    // GAME MANAGER
+    // -----------------------------------------
+
+    const gameManager = new GameManager(
+        scene,
+        {
+            canvas,
+            flightCamera: camera
+        }
+    );
+
+    gameManager.registerThirdPerson(
+        thirdPersonCamera,
+        playerController,
+        characterCameraController
+    );
+
+    // -----------------------------------------
+    // MAIN MENU
+    // -----------------------------------------
+
+    const mainMenu = new MainMenu(gameManager);
+
+scene.metadata = {
+    ...(scene.metadata || {}),
+    celestial,
+    spatialTransform,
+    geometryRenderer,
+    geometryShaderManager,
+    hyperbolicCamera,
+    gameManager,
+    mainMenu,
+    playerCharacter,
+    playerController,
+    characterCameraController
+};
+    // -----------------------------------------
+    // HEIGHTMAP DIAGNOSTICS
+    // -----------------------------------------
+
+    const heightmapDiagnostics =
+        terrain.getDiagnostics(64);
+
+    console.log(
+        "[Scene] Heightmap diagnostics:",
+        heightmapDiagnostics
+    );
+
+    // -----------------------------------------
+    // TERRAIN STREAMING
+    // -----------------------------------------
+
+    const world = new WorldManager(
+        scene,
+        terrain,
+        {
+            chunkSize: CHUNK_SIZE,
+            renderRadius: 3,
+            highDetailRadius: 2,
+            maxChunksPerUpdate: 4
+        }
+    );
+
+    // -----------------------------------------
+    // ADAPTIVE GRAPHICS
+    // -----------------------------------------
+
+    const graphics = new AdaptiveGraphicsController(
+        engine,
+        camera,
+        world,
+        {
+            targetFPS: 55,
+            minimumFPS: 35
+        }
+    );
+
+    // -----------------------------------------
+    // CHUNK ECOLOGY
+    // -----------------------------------------
+
+    const ecology = new ChunkEcologySystem(
+        scene,
+        terrain,
+        {
+            worldSeed: 91827,
+            chunkSize: CHUNK_SIZE,
+            renderRadius: 3,
+            treesPerChunk: 60,
+            seaLevel: -100,
+            sunDirection
+        }
+    );
+
+    // -----------------------------------------
+    // CHUNK GEOLOGY
+    // -----------------------------------------
+
+    const geology = new ChunkGeologySystem(
+        scene,
+        terrain,
+        {
+            worldSeed: 91827,
+            chunkSize: CHUNK_SIZE,
+            renderRadius: 3,
+            rocksPerChunk: 10,
+            seaLevel: -100
+        }
+    );
+
+    console.log("[Scene] Chunk geology connected.");
+
+    // -----------------------------------------
+    // WATER
+    // -----------------------------------------
+
+    const water = new WaterSystem(
+        scene,
+        terrain,
+        -100,
+        {
+            chunkSize: CHUNK_SIZE,
+            renderRadius: 3
+        }
+    );
+
+    // -----------------------------------------
+    // HYDROLOGY
+    // -----------------------------------------
+
+    const hydrology = new Hydrology(
+        terrain,
+        water,
+        20
+    );
+// -----------------------------------------
+// SHARED GEOLOGICAL AND ECOLOGICAL FIELDS
+// -----------------------------------------
+
+// One authoritative geological field is shared
+// by hydrology and the active chunk ecology.
+hydrology.geologicalField = geology.field;
+
+ecology.geologicalField = geology.field;
+ecology.hydrology = hydrology;
+
+console.log(
+    "[Scene] Geological soil systems connected."
+);
+
+    // -----------------------------------------
+    // RAIN
+    // -----------------------------------------
+
+    const rain = new RainSystem(scene);
+
+    // -----------------------------------------
+    // CLOUDS
+    // -----------------------------------------
+
+    const clouds = new ChunkCloudSystem(
+        scene,
+        terrain,
+        water,
+        hydrology,
+        rain,
+        {
+            chunkSize: CHUNK_SIZE,
+            renderRadius: 4,
+            cloudsPerChunk: 8,
+            maxChunksPerUpdate: 2,
+            worldSeed: 91827,
+            renderInterval: 0.5,
+            simulationInterval: 0.25
+        }
+    );
+
+    console.log("[Scene] Environmental systems connected.");
+
+    // -----------------------------------------
+    // UPDATE LOOP
+    // -----------------------------------------
+
+    let ecologyAccumulator = 0;
+
+    scene.onBeforeRenderObservable.add(() => {
+        const deltaSeconds = Math.min(
+            engine.getDeltaTime() / 1000,
+            0.1
+        );
+	celestial.update(deltaSeconds);
+
+        graphics.update(deltaSeconds);
+
+        let position;
+        let forward;
+
+        if (gameManager.mode === "flight") {
+            // Only the flight camera receives hyperbolic
+            // camera updates.
+            hyperbolicCamera.update(deltaSeconds);
+
+            position =
+                hyperbolicCamera.getWorldPosition();
+
+            forward =
+                camera.getForwardRay().direction;
+
+        } else if (gameManager.mode === "thirdPerson") {
+            // Character movement operates in original
+            // authoritative world coordinates.
+            playerController.update(deltaSeconds);
+
+            characterCameraController.update(
+                deltaSeconds
+            );
+
+            position = {
+                ...playerCharacter.worldPosition
+            };
+
+            const yaw = playerCharacter.yaw;
+
+            forward = new BABYLON.Vector3(
+                Math.sin(yaw),
+                0,
+                Math.cos(yaw)
+            );
+
+        } else {
+            // Menu and pause: preserve the world at its
+            // current camera position without advancing
+            // either navigation controller.
+            position = hyperbolicCamera.getWorldPosition();
+            forward = camera.getForwardRay().direction;
+        }
+
+        // -------------------------------------
+        // WORLD STREAMING
+        // -------------------------------------
+
+        world.update(position, forward);
+
+        // -------------------------------------
+        // GEOLOGY
+        // -------------------------------------
+
+        geology.update(position);
+
+        // -------------------------------------
+        // REGIONAL WATER
+        // -------------------------------------
+
+        water.update(position, world.renderRadius);
+
+        // -------------------------------------
+        // ATMOSPHERE
+        // -------------------------------------
+
+        clouds.update(position, deltaSeconds);
+
+        // -------------------------------------
+        // HYDROLOGY
+        // -------------------------------------
+
+        const deltaYears = deltaSeconds * 0.05;
+
+        hydrology.update(deltaYears);
+        rain.update();
+
+        // -------------------------------------
+        // ECOLOGY
+        // -------------------------------------
+
+        ecologyAccumulator += deltaSeconds;
+
+        if (ecologyAccumulator >= 0.25) {
+            const elapsed = ecologyAccumulator;
+            ecologyAccumulator = 0;
+
+            ecology.update(position, elapsed);
+        }
+    });
+
+    // -----------------------------------------
+    // DIAGNOSTICS
+    // -----------------------------------------
+
+    scene.metadata = {
+        ...(scene.metadata || {}),
+
+        worldSize: terrain.worldSize,
+
+        spatialTransform,
+        geometryRenderer,
+        geometryShaderManager,
+
+        getGeometryStats: () =>
+            geometryRenderer.getStats(),
+
+	getCelestialStats: () => celestial.getStats(),
+
+        getWorldStats: () =>
+            world.getStats(),
+
+        getEcologyStats: () =>
+            ecology.getStats(),
+
+        getGeologyStats: () =>
+            geology.getStats(),
+
+        getGraphicsStats: () =>
+            graphics.getStats(),
+
+        getHeightmapStats: () =>
+            terrain.getDiagnostics(64),
+
+        getWaterStats: () =>
+            water.getStats(),
+
+        getCloudStats: () =>
+            clouds.getStats(),
+
+        getGeometryShaderStats: () =>
+            geometryShaderManager.getStats(),
+
+        getHydrologyStats: () =>
+            hydrology.getStatistics(),
+
+        getGameStats: () =>
+            gameManager.getState()
+    };
+
+    // -----------------------------------------
+    // CLEANUP
+    // -----------------------------------------
+
+    scene.onDisposeObservable.add(() => {
+        console.log("[Scene] Disposing Somnium systems.");
+
+        mainMenu.dispose();
+        gameManager.dispose();
+
+        playerController.dispose();
+        characterCameraController.dispose();
+        playerCharacter.dispose();
+
+        geometryRenderer.dispose(world);
+
+        graphics.dispose();
+        ecology.dispose();
+        geology.dispose();
+        world.dispose();
+
+        terrain.dispose();
+        rain.dispose();
+        water.dispose();
+        clouds.dispose();
+
+        geometryShaderManager.dispose();
+        hyperbolicCamera.dispose();
+	celestial.dispose();
+    });
+
+    // -----------------------------------------
+    // INITIALIZATION COMPLETE
+    // -----------------------------------------
+
+    console.log("[Scene] Somnium initialized.");
+
+    console.log("[Scene] Configuration:", {
+        worldSize: WORLD_SIZE,
+        chunkSize: CHUNK_SIZE,
+        chunksAcross: WORLD_SIZE / CHUNK_SIZE,
+        initialPerspective: gameManager.mode,
+        treesPerChunk: ecology.treesPerChunk,
+        rocksPerChunk: geology.rocksPerChunk
+    });
+
+    return scene;
 }
+
 export default createScene;
+

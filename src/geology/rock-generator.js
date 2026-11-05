@@ -1,17 +1,13 @@
+
 import { CreateSeededRandom } from "../core/random.js";
+
 class RecursiveObjectGenerator {
-
     constructor(config) {
-
         this.config = config;
-
         this.matrices = [];
-
     }
 
-
     generate(position, scale, depth) {
-
         this.matrices = [];
 
         this.generateRecursive(
@@ -22,52 +18,20 @@ class RecursiveObjectGenerator {
         );
 
         return this.matrices;
-
     }
 
-
-    generateRecursive(
-        position,
-        scale,
-        maxDepth,
-        currentDepth
-    ) {
-
+    generateRecursive() {
         throw new Error(
             "generateRecursive must be implemented"
         );
-
     }
-
-
-    addSphere(position, scale, rotation) {
-
-        const matrix = BABYLON.Matrix.Compose(
-
-            scale,
-
-            rotation,
-
-            position
-
-        );
-
-        this.matrices.push(matrix);
-
-    }
-
 }
 
 class RockGenerator extends RecursiveObjectGenerator {
-
     constructor(config, seed = 1) {
-
         super(config);
-
         this.random = CreateSeededRandom(seed);
-
     }
-
 
     generateRecursive(
         position,
@@ -75,37 +39,50 @@ class RockGenerator extends RecursiveObjectGenerator {
         maxDepth,
         currentDepth
     ) {
-
         const c = this.config;
         const random = this.random;
 
-        const irregularity = c.irregularity;
+        const irregularity = c.irregularity ?? 0.5;
 
-const depositScale =
-    c.verticalScale < 0.4;
+        // Angular, asymmetric rock body.
+        const sx = scale * (
+            0.75 + random() * irregularity
+        );
 
-const sx = scale * (
-    0.75 + random() * irregularity
-);
+        const sy = scale * (
+            0.65 + random() * irregularity
+        ) * (c.verticalScale ?? 1);
 
-const sy = scale *
-    (0.65 + random() * irregularity) *
-    (c.verticalScale || 1.0);
+        const sz = scale * (
+            0.75 + random() * irregularity
+        );
 
-const sz = scale * (
-    0.75 + random() * irregularity
-);
+        // Fractured formations tend to have tilted faces.
         const rotation =
             BABYLON.Quaternion.RotationYawPitchRoll(
                 random() * Math.PI * 2,
-                random() * Math.PI,
-                random() * Math.PI * 2
+                (random() - 0.5) * 0.8,
+                (random() - 0.5) * 0.8
             );
 
-        this.addSphere(
-            position,
-            new BABYLON.Vector3(sx, sy, sz),
-            rotation
+        const buriedFraction = currentDepth === 0
+            ? 0.30
+            : 0.05;
+
+        const center = position.add(
+            new BABYLON.Vector3(
+                0,
+                sy * (0.5 - buriedFraction),
+                0
+            )
+        );
+
+        this.matrices.push(
+            BABYLON.Matrix.Compose(
+                new BABYLON.Vector3(sx, sy, sz),
+                rotation,
+                center
+            )
         );
 
         if (currentDepth >= maxDepth) {
@@ -113,47 +90,40 @@ const sz = scale * (
         }
 
         const count = Math.max(
-            1,
+            2,
             Math.round(
                 c.branchCount *
-                (1 - currentDepth * 0.12)
+                (1 - currentDepth * 0.10)
             )
         );
 
         for (let i = 0; i < count; i++) {
-
             const phi = random() * Math.PI * 2;
 
-            const vertical = random() * 2 - 1;
+            // Bias protrusions toward the upper surface.
+            const vertical = random() * 1.4 - 0.15;
 
             const radial = Math.sqrt(
-                Math.max(
-                    0,
-                    1 - vertical * vertical
-                )
+                Math.max(0, 1 - vertical * vertical)
             );
 
             const direction = new BABYLON.Vector3(
                 Math.cos(phi) * radial,
                 vertical,
                 Math.sin(phi) * radial
-            );
+            ).normalize();
 
             const displacement =
-                c.displacement *
-                (0.7 + random() * 0.6);
+                (c.displacement ?? 0.8) *
+                (0.65 + random() * 0.55);
 
-            const childPosition =
-                position.add(
-                    direction.scale(
-                        scale * displacement
-                    )
-                );
+            const childPosition = position.add(
+                direction.scale(scale * displacement)
+            );
 
-            const childScale =
-                scale *
-                c.scaleDecay *
-                (0.8 + random() * 0.4);
+            const childScale = scale *
+                (c.scaleDecay ?? 0.6) *
+                (0.75 + random() * 0.35);
 
             this.generateRecursive(
                 childPosition,
@@ -161,10 +131,12 @@ const sz = scale * (
                 maxDepth,
                 currentDepth + 1
             );
-
         }
-
     }
-
 }
-export { RockGenerator, RecursiveObjectGenerator }
+
+export {
+    RockGenerator,
+    RecursiveObjectGenerator
+};
+

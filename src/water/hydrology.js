@@ -15,6 +15,7 @@ class Hydrology {
         this.evaporationRate = 0.015;
 
         this.rainfallRetention = 1.0;
+	this.geologicalField = null;
 
     }
 
@@ -39,51 +40,69 @@ class Hydrology {
     }
 
 
-    getCell(x, z) {
+	getCell(x, z) {
+    const coordinates = this.getCellCoordinates(x, z);
 
-        const coordinates =
-            this.getCellCoordinates(x, z);
+    const key = this.getCellKey(
+        coordinates.x,
+        coordinates.z
+    );
 
-        const key = this.getCellKey(
-            coordinates.x,
-            coordinates.z
-        );
+    if (!this.cells.has(key)) {
+        const worldX = (coordinates.x + 0.5) * this.cellSize;
+        const worldZ = (coordinates.z + 0.5) * this.cellSize;
 
-        if (!this.cells.has(key)) {
+        const soil = this.geologicalField
+            ? this.geologicalField.sample(worldX, worldZ)
+            : null;
 
-            this.cells.set(key, {
+        const capacity = soil
+            ? 0.25 + soil.moistureCapacity * 0.75
+            : 0.75;
 
-                moisture: this.defaultMoisture,
-
-                rainfall: 0,
-
-                evaporation: 0
-
-            });
-
-        }
-
-        return this.cells.get(key);
-
+        this.cells.set(key, {
+            moisture: this.defaultMoisture * capacity,
+            capacity,
+            infiltration: soil?.infiltration ?? 0.65,
+            drainage: soil?.drainage ?? 0.5,
+            fertility: soil?.fertility ?? 0.5,
+            soilType: soil?.surfaceSoil ?? "loam",
+            rainfall: 0,
+            evaporation: 0
+        });
     }
 
+    return this.cells.get(key);
+}
 
-    sampleMoisture(position) {
-
-        if (
-            this.waterSystem.isUnderwater(position)
-        ) {
-            return 1.0;
-        }
-
-        const cell = this.getCell(
-            position.x,
-            position.z
-        );
-
-        return cell.moisture;
-
+sampleSoil(position) {
+    if (!this.geologicalField || !position) {
+        return null;
     }
+
+    return this.geologicalField.sample(
+        position.x,
+        position.z
+    );
+}
+
+
+sampleMoisture(position) {
+    if (this.waterSystem.isUnderwater(position)) {
+        return 1.0;
+    }
+
+    const cell = this.getCell(
+        position.x,
+        position.z
+    );
+
+    return BABYLON.Scalar.Clamp(
+        cell.moisture / Math.max(cell.capacity, 0.001),
+        0,
+        1
+    );
+}
 
 
     addRain(position, radius, amount) {
@@ -154,18 +173,31 @@ class Hydrology {
                     worldZ
                 );
 
-                const depositedWater =
-                    amount *
-                    falloff *
-                    this.rainfallRetention;
+const depositedWater =
+    amount *
+    falloff *
+    this.rainfallRetention *
+    cell.infiltration;
 
-                cell.moisture =
-                    BABYLON.Scalar.Clamp(
-                        cell.moisture + depositedWater,
-                        0,
-                        1
-                    );
+const availableCapacity = Math.max(
+    0,
+    cell.capacity - cell.moisture
+);
 
+const storedWater = Math.min(
+    depositedWater,
+    availableCapacity
+);
+
+cell.moisture += storedWater;
+
+// Water that cannot infiltrate or be stored
+// becomes runoff rather than disappearing
+// into the soil moisture reservoir.
+const runoff = depositedWater - storedWater;
+
+cell.rainfall += storedWater;
+cell.runoff = (cell.runoff ?? 0) + runoff;
                 cell.rainfall += depositedWater;
 
             }
@@ -175,30 +207,36 @@ class Hydrology {
     }
 
 
-    update(deltaYears) {
-
+update(deltaYears) {
+    for (const cell of this.cells.values()) {
         const evaporation =
-            this.evaporationRate * deltaYears;
+            this.evaporationRate *
+            (0.35 + cell.drainage * 0.65) *
+            deltaYears;
 
+        const drainage =
+            cell.drainage *
+            0.025 *
+            deltaYears;
 
-        for (const cell of this.cells.values()) {
+        cell.moisture = Math.max(
+            0,
+            cell.moisture - evaporation - drainage
+        );
 
-            cell.moisture = Math.max(
-                0,
-                cell.moisture - evaporation
-            );
+        cell.evaporation += evaporation;
 
-            cell.evaporation += evaporation;
+        cell.rainfall = Math.max(
+            0,
+            cell.rainfall - deltaYears * 0.1
+        );
 
-            cell.rainfall = Math.max(
-                0,
-                cell.rainfall - deltaYears * 0.1
-            );
-
-        }
-
+        cell.runoff = Math.max(
+            0,
+            (cell.runoff ?? 0) - deltaYears * 0.1
+        );
     }
-
+}
 
     getStatistics() {
 

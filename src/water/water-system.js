@@ -1,58 +1,26 @@
 
-class WaterSystem {
-
-    constructor(scene, terrain, seaLevel = -100) {
-
+export class WaterSystem {
+    constructor(scene, terrain, seaLevel = -100, options = {}) {
         this.scene = scene;
         this.terrain = terrain;
-
         this.seaLevel = seaLevel;
+
+        this.chunkSize = options.chunkSize ?? 2000;
+        this.renderRadius = options.renderRadius ?? 3;
 
         this.evaporationRate = 0.12;
 
-        this.createOcean();
+        this.tiles = new Map();
+        this.disposed = false;
 
+        this.material = this.createWaterMaterial();
+
+        console.log("[Water] Regional water system initialized.");
     }
 
-
-    createOcean() {
-
-        const width =
-            this.terrain.max.x - this.terrain.min.x;
-
-        const depth =
-            this.terrain.max.z - this.terrain.min.z;
-
-        const centerX =
-            (this.terrain.min.x + this.terrain.max.x) / 2;
-
-        const centerZ =
-            (this.terrain.min.z + this.terrain.max.z) / 2;
-
-
-        this.ocean = BABYLON.MeshBuilder.CreateGround(
-            "ocean",
-            {
-                width: width,
-                height: depth,
-                subdivisions: 1
-            },
-            this.scene
-        );
-
-        this.ocean.position.set(
-            centerX,
-            this.seaLevel,
-            centerZ
-        );
-
-        this.ocean.isPickable = false;
-
-        this.ocean.receiveShadows = false;
-
-
+    createWaterMaterial() {
         const material = new BABYLON.StandardMaterial(
-            "oceanMaterial",
+            "regionalOceanMaterial",
             this.scene
         );
 
@@ -69,47 +37,159 @@ class WaterSystem {
 
         material.backFaceCulling = false;
 
-        this.ocean.material = material;
-
-        this.material = material;
-
+        return material;
     }
 
+    getChunkKey(x, z) {
+        return `${x},${z}`;
+    }
 
-	isUnderwater(position) {
-	
-		if (!position) {
-			return false;
-		}
+    createOceanTile(chunkX, chunkZ) {
+        const minX = Math.max(
+            chunkX * this.chunkSize,
+            this.terrain.min.x
+        );
 
-		return position.y < this.seaLevel;
+        const maxX = Math.min(
+            (chunkX + 1) * this.chunkSize,
+            this.terrain.max.x
+        );
 
-	}
+        const minZ = Math.max(
+            chunkZ * this.chunkSize,
+            this.terrain.min.z
+        );
 
+        const maxZ = Math.min(
+            (chunkZ + 1) * this.chunkSize,
+            this.terrain.max.z
+        );
+
+        const width = maxX - minX;
+        const depth = maxZ - minZ;
+
+        if (width <= 0 || depth <= 0) return null;
+
+        const mesh = BABYLON.MeshBuilder.CreateGround(
+            `ocean_${chunkX}_${chunkZ}`,
+            {
+                width,
+                height: depth,
+                subdivisions: 1
+            },
+            this.scene
+        );
+
+        mesh.position.set(
+            (minX + maxX) * 0.5,
+            this.seaLevel,
+            (minZ + maxZ) * 0.5
+        );
+
+        mesh.material = this.material;
+        mesh.isPickable = false;
+        mesh.receiveShadows = false;
+
+        mesh.metadata = {
+            waterType: "ocean",
+            chunkX,
+            chunkZ
+        };
+
+        this.tiles.set(
+            this.getChunkKey(chunkX, chunkZ),
+            mesh
+        );
+
+        return mesh;
+    }
+
+    removeTile(key) {
+        const mesh = this.tiles.get(key);
+
+        if (!mesh) return;
+
+        mesh.dispose();
+        this.tiles.delete(key);
+    }
+
+    update(cameraPosition, renderRadius = this.renderRadius) {
+        if (this.disposed || !cameraPosition) return;
+
+        const centerX = Math.floor(
+            cameraPosition.x / this.chunkSize
+        );
+
+        const centerZ = Math.floor(
+            cameraPosition.z / this.chunkSize
+        );
+
+        const desired = new Set();
+
+        for (
+            let x = centerX - renderRadius;
+            x <= centerX + renderRadius;
+            x++
+        ) {
+            for (
+                let z = centerZ - renderRadius;
+                z <= centerZ + renderRadius;
+                z++
+            ) {
+                const minX = x * this.chunkSize;
+                const minZ = z * this.chunkSize;
+
+                const maxX = minX + this.chunkSize;
+                const maxZ = minZ + this.chunkSize;
+
+                // Ignore chunks outside the terrain.
+                if (
+                    maxX <= this.terrain.min.x ||
+                    minX >= this.terrain.max.x ||
+                    maxZ <= this.terrain.min.z ||
+                    minZ >= this.terrain.max.z
+                ) {
+                    continue;
+                }
+
+                const key = this.getChunkKey(x, z);
+
+                desired.add(key);
+
+                if (!this.tiles.has(key)) {
+                    this.createOceanTile(x, z);
+                }
+            }
+        }
+
+        // Remove distant water meshes.
+        for (const key of this.tiles.keys()) {
+            if (!desired.has(key)) {
+                this.removeTile(key);
+            }
+        }
+    }
+
+    isUnderwater(position) {
+        if (!position) return false;
+
+        return position.y < this.seaLevel;
+    }
 
     getTerrainWaterDepth(position) {
+        if (!position) return 0;
 
-	if (!position) {
-		return 0;
-	}
         return Math.max(
             0,
             this.seaLevel - position.y
         );
-
     }
 
-
     getEvaporationPotential(position) {
-
-        // The ocean provides a persistent moisture source.
-        // Land contributes a smaller baseline humidity.
-
-        const terrainPosition =
-            this.terrain.sampleAt(
-                position.x,
-                position.z
-            );
+        const terrainPosition = this.terrain.sampleAt(
+            position.x,
+            position.z
+        );
 
         if (!terrainPosition) return 0.2;
 
@@ -134,32 +214,27 @@ class WaterSystem {
             0.2,
             1
         );
-
     }
 
-
-    update(deltaYears) {
-
-        // Reserved for future ocean simulation:
-        // animated tides, water temperature,
-        // surface currents and water levels.
-
+    getStats() {
+        return {
+            activeOceanTiles: this.tiles.size,
+            chunkSize: this.chunkSize,
+            seaLevel: this.seaLevel,
+            renderRadius: this.renderRadius
+        };
     }
-
 
     dispose() {
+        if (this.disposed) return;
 
-        if (this.ocean) {
-            this.ocean.dispose();
+        this.disposed = true;
+
+        for (const key of Array.from(this.tiles.keys())) {
+            this.removeTile(key);
         }
 
-        if (this.material) {
-            this.material.dispose();
-        }
-
+        this.material.dispose();
     }
-
 }
-
-export { WaterSystem };
 

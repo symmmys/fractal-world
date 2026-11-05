@@ -29,7 +29,9 @@ class Tree {
 
     this.seedTimer = 0;
 
-
+this.soilSample = null;
+this.soilSampleTimer = 0;
+this.soilSuitability = 1.0;
     // Environmental conditions
 
     this.lightLevel = 1.0;
@@ -166,12 +168,52 @@ update(deltaYears, environment, hydrology) {
     // SOIL MOISTURE
     // --------------------------------
 
-    if (hydrology) {
+	this.soilSampleTimer -= deltaYears;
 
-        this.soilMoisture =
-            hydrology.sampleMoisture(
-                this.position
-            );
+if (
+    hydrology &&
+    this.soilSampleTimer <= 0
+) {
+    this.soilSample = hydrology.sampleSoil(
+        this.position
+    );
+
+    this.soilSampleTimer = 5.0;
+}
+
+
+if (hydrology && typeof hydrology.sampleSoil === "function") {
+	const soil = this.soilSample;
+
+    if (soil) {
+        const affinity = this.species.soilAffinity;
+
+        const textureScore = affinity.preferred.includes(
+            soil.surfaceSoil
+        ) ? 1.0 : affinity.tolerance;
+
+        const fertilityScore = 1.0 - Math.abs(
+            soil.fertility - affinity.fertility
+        );
+
+        const drainageScore = 1.0 - Math.abs(
+            soil.drainage - affinity.drainage
+        );
+
+        const moistureScore = 1.0 - Math.abs(
+            this.soilMoisture - affinity.moisture
+        );
+
+        this.soilSuitability = BABYLON.Scalar.Clamp(
+            textureScore * 0.40 +
+            fertilityScore * 0.20 +
+            drainageScore * 0.20 +
+            moistureScore * 0.20,
+            0.15,
+            1.0
+        );
+    }
+}
 
     }
 
@@ -270,10 +312,10 @@ update(deltaYears, environment, hydrology) {
     // COMBINED GROWTH
     // --------------------------------
 
-    const combinedGrowth =
-        this.growthMultiplier *
-        this.moistureMultiplier;
-
+const combinedGrowth =
+    this.growthMultiplier *
+    this.moistureMultiplier *
+    this.soilSuitability;
 
     this.age += deltaYears * combinedGrowth;
 

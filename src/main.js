@@ -1,8 +1,8 @@
+
 import createScene from "./scene/create-scene.js";
 
 async function main() {
-
-    console.log("[Main] Initializing application...");
+    console.log("[Main] Initializing Somnium...");
 
     const canvas = document.getElementById("renderCanvas");
 
@@ -10,7 +10,6 @@ async function main() {
         throw new Error("Render canvas not found.");
     }
 
-    // Initialize Babylon.js engine.
     const engine = new BABYLON.Engine(
         canvas,
         true,
@@ -19,30 +18,45 @@ async function main() {
         }
     );
 
-    console.log("[Main] Engine initialized.");
+    let scene = null;
 
-    // Create the scene.
-    const scene = await createScene(engine, canvas);
+    try {
+        console.log("[Main] Engine initialized.");
 
-    console.log("[Main] Scene initialized.");
+        scene = await createScene(engine, canvas);
 
-    // Start rendering.
-    engine.runRenderLoop(() => {
-        scene.render();
-    });
+        console.log("[Main] Scene initialized.");
 
-    // Handle browser resizing.
-    window.addEventListener("resize", () => {
-        engine.resize();
-    });
+        engine.runRenderLoop(() => {
+            if (scene && !scene.isDisposed) {
+                scene.render();
+            }
+        });
 
+        const handleResize = () => {
+            engine.resize();
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        window.addEventListener("beforeunload", () => {
+            window.removeEventListener("resize", handleResize);
+
+            scene?.dispose();
+            engine.dispose();
+        }, { once: true });
+
+    } catch (error) {
+        scene?.dispose();
+        engine.dispose();
+        throw error;
+    }
 }
 
-
-// Start application.
 main().catch(error => {
-
-    console.error("[Main] Application initialization failed:", error);
-
+    console.error(
+        "[Main] Application initialization failed:",
+        error
+    );
 });
 

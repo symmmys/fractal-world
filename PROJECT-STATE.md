@@ -1,341 +1,712 @@
-PROJECT STATE
-Project Overview
+SOMNIUM — PROJECT STATE
 
-This project is an experimental procedural world simulation built using JavaScript and Babylon.js.
 
-The project deliberately moves beyond conventional assumptions about Euclidean geometry, uniform time, fixed physical properties, and conventional world simulation.
+Last updated: 2026-11-04
 
-The objective is to develop a general-purpose simulation architecture capable of representing unusual physical and mathematical environments.
+Project
 
-The artistic and conceptual direction is driven by the project owner. Technical architecture, mathematical implementation, extensibility, and code integration are delegated to ChatGPT.
+Babylon.js procedural open-world simulation with experimental three-dimensional Poincaré geometry.
 
-Guiding Architectural Philosophy
-
-The architecture should be as general and extensible as reasonably possible.
-
-Do not assume that conventional simulation models are permanent requirements.
-
-Important principles:
-
-Mathematical models should be independent of rendering.
-Simulation systems should consume shared environmental fields.
-Physical properties should be capable of influencing geometry.
-Geometry and time should be spatially variable.
-Multiple fields should be capable of overlapping and interacting.
-New physical phenomena should be implementable without rewriting existing systems.
-Existing project functionality should be preserved wherever possible.
-Avoid unnecessary dependencies between simulation subsystems.
-Prefer configurable mathematical models over hardcoded special cases.
-Keep numerical stability and testability central to implementation decisions.
-Existing Technology
-JavaScript.
-Babylon.js.
-Procedural simulation.
-Three-dimensional world coordinates.
-Thin instance rendering through a custom ThinInstanceRenderer.
 Existing Systems
+Heightmap-based terrain with streamed chunks and LOD.
+Procedural ecology, vegetation and geology.
+Regional water, hydrology, rainfall and clouds.
+Adaptive graphics management.
+SpatialTransform and GeometryRenderer.
+Experimental GPU geometry shader system.
+Hyperbolic camera navigation.
+Gameplay
+Flight-simulator perspective.
+Third-person character perspective.
+Main menu with perspective selection.
+Runtime perspective switching.
+Character movement and terrain following.
+Third-person camera with scroll-wheel zoom.
+Celestial System — New Milestone
+
+New module: src/environment/celestial-system.js
+
+Implemented:
+
+Visible sun and moon.
+Orbital day/night cycle.
+Animated directional sunlight.
+Animated moonlight.
+Variable ambient illumination.
+Dynamic sky background coloration.
+Configurable orbital speed and day length.
+Celestial diagnostics.
+
+Terrain lighting:
+
+src/world/world-manager.js
+Terrain material now receives Babylon.js lighting instead of explicitly disabling it.
+Existing vertex colors are preserved.
+Small emissive contribution maintains nighttime visibility.
+
+Initial day length: 900 seconds.
+
+Coordinate Architecture
+Authoritative simulation coordinates remain separate from rendering coordinates.
+Poincaré projection handles spatial distortion.
+Celestial bodies use camera-relative visual positioning.
+Celestial orbital direction and lighting are shared between gameplay perspectives.
+Immediate Priorities
+Validate terrain illumination during daylight and nighttime.
+Verify sun and moon visibility from both camera perspectives.
+Tune ambient illumination and terrain coloration.
+Introduce atmospheric scattering and dawn/dusk coloration.
+Integrate moving shadows.
+Introduce camera orbit controls.
+Continue hyperbolic character movement and geodesic navigation.
+Architectural Requirements
+Preserve existing world and environmental systems.
+Keep simulation independent of rendering quality.
+Maintain one persistent world across camera modes.
+Never allow navigation to reach the Poincaré boundary.
+Keep celestial lighting independent of camera perspective.
+Validate deployed changes before marking them complete.
+Source
+
+https://tothrees.404.mn/thisispubliccodeorisit/
+
+Future sessions should inspect the latest deployed code before modifying existing modules. Proposed implementations must not be confused with verified deployments.
+
+
+## Celestial System — Atmospheric Rendering Milestone
+
+Primary module:
+src/environment/celestial-system.js
+
+Scene integration:
+src/scene/create-scene.js
+
+### Existing Celestial Simulation
+
+- Visible sun and moon.
+- Orbital day/night cycle.
+- Configurable day length.
+- Animated directional sunlight.
+- Animated moonlight.
+- Variable ambient illumination.
+- Shared celestial directions across gameplay perspectives.
+- Time-of-day controls.
+- Celestial diagnostics.
+
+### Atmospheric Rendering
+
+New procedural atmospheric sky renderer.
+
+Implemented in the proposed CelestialSystem revision:
+
+- GPU-based atmospheric sky shader.
+- Camera-centered sky dome.
+- Blue daytime sky with zenith-to-horizon gradient.
+- Dark blue-black nighttime sky.
+- Procedurally generated stars.
+- Animated star twinkling.
+- Dawn and dusk color transitions.
+- Red-orange sunset coloration.
+- Solar disc and atmospheric glow.
+- Lunar atmospheric glow.
+- Gradual star visibility transitions.
+- Independent sky, sun and moon rendering groups.
+
+### Rendering Architecture
+
+- Babylon.js ShaderMaterial handles atmospheric rendering.
+- Sky shader receives celestial directions and simulation time.
+- Celestial simulation remains the authoritative source of time.
+- Sky rendering follows the active camera.
+- Celestial lighting remains independent of camera perspective.
+- Poincaré projection remains responsible for world geometry.
+- The atmospheric sky is a conventional rendering layer and is not transformed through hyperbolic geometry.
+
+### Scene Integration
+
+- CelestialSystem imported by create-scene.js.
+- Existing directional sunlight reused.
+- Existing hemispheric ambient light reused.
+- Moonlight managed by CelestialSystem.
+- Celestial instance exposed through scene.metadata.celestial.
+- Simulation updated through scene.onBeforeRenderObservable.
+- Existing world simulation and rendering loops preserved.
+
+### Configuration
+
+- Day length: 900 seconds.
+- Celestial orbit distance: 45,000 units.
+- Sky radius: 90,000 units.
+- Sun diameter: 1,800 units.
+- Moon diameter: 1,300 units.
+
+### Immediate Validation Priorities
+
+1. Verify Babylon.js shader compilation.
+2. Verify atmospheric rendering on supported GPUs.
+3. Verify sky positioning in flight perspective.
+4. Verify sky positioning in third-person perspective.
+5. Check rendering order and depth handling.
+6. Verify sunrise and sunset coloration.
+7. Verify nighttime darkness and star visibility.
+8. Verify sun and moon visibility.
+9. Check terrain lighting against atmospheric brightness.
+10. Check compatibility with GeometryShaderManager.
+11. Check cloud rendering against the atmospheric background.
+12. Verify that camera switching does not interrupt the celestial simulation.
+
+### Future Atmospheric Improvements
+
+- Physically based atmospheric scattering.
+- More realistic solar color based on atmospheric path length.
+- Dynamic cloud shadows.
+- Volumetric cloud lighting.
+- Lunar phases.
+- Improved star distribution and constellations.
+- Atmospheric haze near the horizon.
+
+### Architectural Requirements
+
+- Preserve existing world and environmental systems.
+- Maintain one persistent world across camera modes.
+- Keep simulation independent of rendering quality.
+- Keep celestial lighting independent of camera perspective.
+- Never allow navigation to reach the Poincaré boundary.
+- Validate deployed changes before marking proposed features as verified.
+
+### Deployment Status
+
+The atmospheric renderer and scene integration are proposed changes.
+
+Do not consider the new atmospheric rendering milestone
+verified until it has been deployed and tested in the actual
+Babylon.js application.
+
+Atmospheric Rendering — Milestone 1: Improved Clouds and Cumulonimbus
+
+Implementation prepared: 2026-11-05
+
+Collaboration and Code Delivery Workflow
+
+Future development sessions must follow this workflow:
+
+Inspect the latest publicly available codebase and read the entire current PROJECT-STATE.md.
+Inspect existing implementations and dependencies before proposing modifications.
+Provide complete replacement files for existing modules that require changes.
+Provide complete source files for newly introduced modules.
+Include all necessary imports and integration instructions.
+Provide PROJECT-STATE.md updates as appendable Markdown.
+Clearly distinguish proposed code, delivered code, deployed code and independently verified code.
+Do not assume direct repository write access is available. The intended workflow is to deliver complete code additions and replacements directly in the conversation for manual integration.
+Cloud Rendering Improvements
+
+Files prepared:
+
+src/atmosphere/cloud-species.js
+src/atmosphere/cloud.js
+src/atmosphere/cloud-generator.js
+src/rendering/cloud-renderer.js
+src/world/chunk-cloud-system.js
+
+Improvements:
+
+Increased procedural cloud dimensions.
+Added explicit instance color-buffer management.
+Corrected the missing instance-color population in the cloud rendering path.
+Introduced species-specific cloud coloration.
+Added moisture-responsive cloud shading.
+Replaced geological recursive generation dependency with dedicated atmospheric geometry generation.
+Added deterministic cloud geometry seeds.
+Improved cloud morphology through overlapping irregular ellipsoidal lobes.
+Increased cloud-layer altitude relative to local terrain.
+New Cloud Species
+
+Three supported species:
+
+Cumulus
+
+Broad horizontal development.
+Bright coloration.
+Relatively shallow vertical development.
+
+Towering Cumulus
+
+Increased vertical dimensions.
+More substantial atmospheric development.
+Increased moisture capacity and precipitation duration.
+
+Cumulonimbus
+
+Large-scale storm formations.
+Significant vertical development.
+Darker lower cloud regions.
+Lighter upper cloud regions.
+Increased moisture capacity.
+Stronger precipitation intensity.
+Longer precipitation duration.
+Simulation Integration
+Existing chunk streaming preserved.
+Existing atmospheric moisture calculations preserved.
+Existing hydrology integration preserved.
+Existing precipitation-state simulation preserved.
+Storm clouds integrated into species selection.
+Cloud geometry cached after initial generation.
+Cloud geometry updates remain on the existing rendering interval.
+Outstanding Atmospheric Work
+
+Not yet implemented or verified:
+
+Multiple simultaneous spatially correct rain emitters.
+Rain rendering through SpatialTransform.
+Visible precipitation shafts and storm rain curtains.
+Rayleigh atmospheric scattering.
+Mie forward scattering.
+Atmospheric horizon haze.
+Sun-dependent volumetric cloud illumination.
+Twilight atmospheric coloration.
+Improved cloud shadows.
+Validation Requirements
+Confirm clouds are visible in flight perspective.
+Confirm clouds are visible in third-person perspective.
+Confirm cloud geometry survives Poincaré projection.
+Confirm instance color buffers match rendered instance counts.
+Confirm cumulonimbus formations are visibly taller than ordinary cumulus.
+Confirm cloud streaming remains stable during navigation.
+Confirm existing moisture and hydrology simulation continues working.
+Measure rendering performance with the increased cloud geometry.
+Deployment Status
+
+Code delivered for manual integration.
+
+Deployment and runtime verification pending.
+
+Do not mark this milestone as deployed until the replacement files have been integrated and tested in the running application.
+Atmospheric Rendering — Milestone 2: Cloud Morphology and Scale
+
+Implementation prepared: 2026-11-05
+
+Files Updated
+src/atmosphere/cloud-species.js
+src/atmosphere/cloud-generator.js
+src/world/chunk-cloud-system.js (targeted modification)
+Cloud Scale Improvements
+
+Increased the base cloud dimensions:
+
+Species	Previous scale	New scale
+Cumulus	240	620
+Towering	480	1050
+Cumulonimbus	900	1450
+
+Introduced wider per-cloud scale variation:
+
+Ordinary clouds: 0.62–1.70 multiplier.
+Cumulonimbus: 0.78–1.40 multiplier.
+Procedural Morphology
+
+Replaced repetitive recursive cloud generation with species-specific procedural construction.
+
+Cumulus
+
+Broad overlapping lobes.
+Irregular upper crowns.
+Horizontal development.
+Randomized lobe dimensions and positions.
+
+Towering Cumulus
+
+Multiple vertical formation levels.
+Narrower central structure.
+Irregular upper development.
+Increased vertical variation.
+
+Cumulonimbus
+
+Large vertical storm column.
+Multiple overlapping formation levels.
+Broad anvil-like upper structure.
+Additional upper storm towers.
+Increased geometric complexity.
+Deterministic Generation
+Seeded random generation preserved.
+Individual cloud geometry remains reproducible.
+Independent lobe dimensions, rotations and offsets.
+Chunk generation architecture preserved.
+Performance Considerations
+Geometry remains generated once per cloud.
+Existing thin-instance rendering retained.
+Maximum lobe counts constrain instance growth.
+No external dependencies introduced.
+Validation Requirements
+Compare cloud sizes at different viewing distances.
+Verify cloud morphology across regenerated chunks.
+Confirm cumulonimbus anvil structures remain visible.
+Check cloud overlap and density.
+Measure thin-instance counts and frame rates.
+Verify Poincaré projection of larger cloud formations.
+Test flight and third-person perspectives.
+Outstanding Work
+Volumetric cloud lighting.
+Atmospheric scattering.
+Cloud shadows.
+Multiple simultaneous rain emitters.
+Visible storm precipitation.
+Dynamic cloud evolution and weather transitions.
+Deployment Status
+
+Code prepared for manual integration.
+
+Runtime validation and deployment verification pending.
+
+## Atmospheric Rendering — Cloud Refinement and Performance Milestone
+
+Implementation prepared: 2026-11-05
+
+### Visual Refinements
+
+- Reduced overall cloud dimensions.
+- Increased cloud-layer altitude.
+- Reduced recursive cloud geometry complexity.
+- Preserved three cloud species.
+- Preserved irregular overlapping ellipsoid morphology.
+- Reduced moisture-driven horizontal expansion.
+- Reduced moisture-driven vertical expansion.
+- Preserved storm-cloud vertical development.
+- Reduced cloud prototype sphere resolution.
+
+### Performance Improvements
+
+- Cloud environmental sampling cached for one second.
+- Cloud simulation restricted to active streaming chunks.
+- Inactive chunks no longer incur continuous cloud simulation costs.
+- Reduced recursive geometry generation through shallower branching.
+- Reduced unnecessary geometry complexity.
+
+### Architectural Preservation
+
+- Existing deterministic cloud generation preserved.
+- Existing chunk streaming architecture preserved.
+- Existing hydrology integration preserved.
+- Existing precipitation mechanics preserved.
+- Existing moisture calculations preserved.
+- Existing thin-instance rendering architecture preserved.
+- Existing species-specific coloration preserved.
+- Existing cloud geometry caching preserved.
+
+### Validation Required
+
+1. Confirm cloud size and altitude visually.
+2. Confirm sky visibility in both camera perspectives.
+3. Confirm cloud movement remains continuous.
+4. Confirm cumulonimbus formations retain their distinctive vertical morphology.
+5. Confirm moisture accumulation and precipitation.
+6. Confirm cloud transitions between active and inactive chunks.
+7. Confirm rendering buffers remain synchronized.
+8. Measure CPU and GPU utilization before and after changes.
+9. Measure sustained system temperatures during equivalent simulation workloads.
+
+### Deployment Status
+
+Code changes prepared for manual integration.
+
+Not yet deployed or runtime verified.
+
+Performance improvements are expected from reduced geometry and inactive-chunk simulation, but actual temperature reductions must be measured on the target hardware.
+
+
+## Atmospheric Simulation — Milestone 3:
+## Regional Weather, Air Pressure and Wind
+
+Implementation prepared: 2026-11-05
+
+### New Module
+
+src/atmosphere/air-pressure-field.js
+
+### Atmospheric Pressure
+
+- Introduced a spatially varying atmospheric pressure field.
+- Multiple overlapping pressure waves create large-scale variation.
+- Pressure evolves continuously with simulation time.
+- Horizontal pressure gradients determine wind direction.
+- Prevailing atmospheric circulation provides background wind.
+- Wind velocity is constrained to configurable maximum strength.
+
+### Regional Weather Classification
+
+Three atmospheric regimes:
+
+1. Stable
+2. Convective
+3. Storm-conducive
+
+Classification considers:
+- Local evaporation potential.
+- Atmospheric pressure.
+- An approximate atmospheric instability indicator.
+
+Weather classifications are cached by spatial region.
+
+### Cloud Species Selection
+
+Stable regions:
+- Predominantly cumulus.
+- Occasional towering cumulus.
+- No cumulonimbus.
+
+Convective regions:
+- Cumulus.
+- Towering cumulus.
+- No cumulonimbus.
+
+Storm-conducive regions:
+- Cumulus.
+- Towering cumulus.
+- Rare cumulonimbus.
+
+Similar cloud families are more likely to occur
+within the same regional weather system.
+
+### Wind Simulation
+
+- Clouds sample the atmospheric wind field.
+- Cloud velocities gradually approach local wind velocity.
+- Small-scale atmospheric turbulence is introduced.
+- Abrupt changes in wind direction are avoided.
+- Clouds retain individual movement velocities.
+
+### Dynamic Cloud Rendering
+
+- Cloud geometry is generated relative to local origins.
+- Geometry is cached after generation.
+- Current cloud positions are applied during rendering.
+- Cloud instance transformations are refreshed periodically.
+- Cloud geometry is not regenerated during ordinary movement.
+
+### Performance Considerations
+
+- Pressure field uses inexpensive analytical functions.
+- Pressure gradients use four spatial evaluations.
+- No full fluid simulation grid introduced.
+- No external atmospheric simulation dependencies.
+- Weather classifications are cached by region.
+- Cloud geometry generation remains independent
+  of the wind update frequency.
+
+### Outstanding Atmospheric Work
+
+- Dynamic transitions between weather regimes.
+- Atmospheric fronts and storm movement.
+- Multiple simultaneous precipitation emitters.
+- Cloud shadow projection.
+- Volumetric cloud lighting.
+- Atmospheric vertical wind profiles.
+- Orographic lifting over mountainous terrain.
+- Improved pressure and humidity diagnostics.
+
+### Validation Requirements
+
+1. Confirm cumulonimbus formations are uncommon.
+2. Confirm cumulonimbus only appear in storm-conducive regions.
+3. Confirm neighboring clouds exhibit regional similarity.
+4. Confirm pressure changes smoothly across space.
+5. Confirm wind direction follows pressure gradients.
+6. Confirm clouds move visibly but gently.
+7. Confirm rendered cloud positions follow simulation positions.
+8. Confirm rainfall still functions.
+9. Confirm cloud rendering works in both camera perspectives.
+10. Measure CPU and GPU performance.
+
+### Deployment Status
+
+Source changes prepared for manual integration.
+
+Deployment and runtime verification pending.
+
+
+## Environmental Generation — Milestone 3
+### Atmospheric Wind, Continuous Geology and Fractured Bedrock
+
+Implementation status: Partially prepared
+Deployment status: Pending
+
+### Geological Field
+- Expanded geological material classification.
+- Added granite, limestone, sandstone and basalt.
+- Added scree and exposed bedrock classification.
+- Added continuous rock exposure calculations.
+- Added porosity and moisture retention.
+- Added soil fertility and erosion resistance.
+- Preserved terrain heightmap authority.
+- Preserved deterministic geological noise.
+
+### Angular Rock Generation
+- Replaced recursive spherical formations with
+  angular rectangular-prism geometry.
+- Added irregular dimensions and rotations.
+- Preserved recursive branching.
+- Preserved deterministic generation.
+- Retained existing transformation-matrix interface.
+
+### Atmospheric Wind
+Planned:
+- Elevated cloud layers.
+- Coherent regional prevailing winds.
+- Localized wind variation.
+- Continuous horizontal cloud movement.
+- Rendering synchronization.
+- Species-specific atmospheric altitude.
+
+### Surface Geology
+Planned:
+- Continuous geological coverage.
+- Exposed bedrock on steep slopes.
+- Material-specific terrain coloration.
+- Sediment and scree transitions.
+- Improved geological surface blending.
+
+### Validation Requirements
+- Verify all terrain locations have geological properties.
+- Verify material transitions are spatially continuous.
+- Verify rock formations follow terrain elevation.
+- Verify rocks intersect the terrain naturally.
+- Verify angular geometry under Poincaré projection.
+- Verify cloud movement and rendering synchronization.
+- Verify cloud altitude in both camera perspectives.
+- Verify chunk streaming and thin-instance performance.
+
+### Deployment Status
+Geological field and rock generator replacements prepared.
+Full chunk-system integration pending.
+No deployment or runtime verification claimed.
+
+partway through improving the geology system
+
+## Environmental Generation — Geological and Atmospheric Refinement
+
+Implementation prepared: 2026-11-05
+
+### Atmospheric Wind
+
+- Introduced coherent spatially varying wind.
+- Added gradual cloud velocity transitions.
+- Increased cloud altitude.
+- Preserved terrain-relative cloud positioning.
+- Preserved cached cloud geometry.
+- Corrected the missing rendering invalidation after cloud movement.
+- Preserved existing moisture and precipitation simulation.
+
+### Geological Sampling
+
+- Expanded GeologicalField material properties.
+- Added deterministic geological strata variation.
+- Added surface roughness.
+- Added bedrock exposure.
+- Added weathering characteristics.
+- Added material density, hardness, cohesion and porosity.
+- Added moisture capacity to every valid geological sample.
+- Preserved deterministic world generation.
+
+### Angular Rock Formations
+
+- Replaced recursive sphere transforms with recursive box transforms.
+- Introduced asymmetric formations.
+- Increased rotational variation.
+- Added buried formation bases.
+- Added irregular protrusions.
+- Preserved thin-instance rendering.
+- Preserved deterministic formation seeds.
+- Preserved geological species characteristics.
+
+### Remaining Integration Work
+
+1. Complete the ChunkCloudSystem updateSimulation refactor.
+2. Integrate GeologicalField into terrain-mesh-worker.js.
+3. Apply geological material colors to every terrain vertex.
+4. Blend geological boundaries.
+5. Add exposed-bedrock coloration based on slope and exposure.
+6. Add surface roughness variation.
+7. Validate rock formation intersections with terrain.
+8. Validate cloud movement in both camera perspectives.
+9. Measure chunk generation and rendering performance.
+10. Verify Poincaré projection compatibility.
+
+### Deployment Status
+
+Source changes prepared for manual integration.
+
+Not deployed or runtime verified.
+
+Terrain-worker geological rendering integration remains outstanding.
+
+
+## Environmental Generation — Milestone 4
+### Continuous Geology, Soil Horizons and Ecological Affinities
+
+Implementation prepared: 2026-11-05
+
+### Atmospheric Refinement
+- Reduced wind velocity to 20% of previous targets.
+- Corrected duplicate cloud simulation loops.
+- Ensured each cloud is simulated once per simulation step.
+- Preserved coherent regional wind.
+- Preserved cached cloud geometry.
+- Preserved precipitation and moisture accumulation.
+
+### Geological Field
+- Added granite, basalt, limestone and sandstone classification.
+- Added scree and exposed bedrock.
+- Added organic soil, loam, silt, clay and sand.
+- Added variable geological strata.
+- Added deterministic material variation.
+- Separated underlying bedrock from surface soil.
+
+### Soil Horizons
+- Added O horizon: organic material.
+- Added A horizon: topsoil.
+- Added B horizon: subsoil.
+- Added C horizon: weathered parent material.
+- Added variable soil depth.
+- Added slope-dependent soil exposure.
+
+### Terrain Rendering
+- Added deterministic geological color sampling to terrain worker.
+- Added soil and bedrock color blending.
+- Added exposed mountain geology.
+- Added surface variation.
+- Preserved existing LOD and neighbor edge stitching.
+- Preserved worker transfer protocol.
+
+### Hydrology
+- Added material-specific infiltration.
+- Added water retention capacity.
+- Added material-specific drainage.
+- Added soil-specific evaporation.
+- Added rainfall runoff accounting.
+- Connected geological properties to hydrology cells.
+
+### Ecology
+- Added oak and pine soil preferences.
+- Added fertility suitability.
+- Added drainage suitability.
+- Added soil texture suitability.
+- Added moisture suitability.
+- Connected streamed tree populations to hydrology.
+- Added periodic geological sampling for tree suitability.
+
+### Remaining Work
+1. Validate terrain-worker coloration against GeologicalField.
+2. Tune soil horizon depths against world scale.
+3. Add downslope runoff transport.
+4. Introduce additional vegetation species.
+5. Introduce biome transitions.
+6. Validate rock formations against actual terrain surfaces.
+7. Measure generation and rendering performance.
+8. Validate both camera perspectives.
+9. Validate Poincare geometry compatibility.
+
+### Deployment Status
+Implementation prepared for manual integration.
+Not deployed or runtime verified.
+Visual and performance validation pending.
 
-The project includes or has discussed the following systems:
-
-WorldManager
-ThinInstanceRenderer
-Forest
-Tree
-Genetics
-Geology
-Hydrology
-Clouds
-Temperature
-
-The exact current implementations and directory structure must be verified against the actual project files before making modifications.
-
-Major Architectural Initiative: WorldFieldSystem
-
-The next major development objective is a centralized environmental field infrastructure.
-
-Proposed entry point:
-
-WorldFieldSystem
-
-This system will coordinate independent fields describing the environment.
-
-Initial components
-WorldField: common field abstraction.
-FieldRegistry: registration and discovery of fields.
-FieldSampler: consistent sampling interface.
-SpatialLattice: three-dimensional field storage and interpolation.
-SpacetimeField: spatial geometry and temporal behavior.
-MetricTensor: local spatial metric representation.
-TemperatureField: environmental temperature distribution.
-MaterialField: local material properties.
-PhysicalProperties: shared physical property definitions.
-Geometry models
-
-Geometry should be modular and interchangeable.
-
-Initial models:
-
-EuclideanGeometry
-PoincareGeometry
-GeodesicSolver
-
-The Poincare model should eventually support hyperbolic geometry and the associated metric.
-
-Mathematical Direction
-Spatial geometry
-
-The initial implementation should support a general symmetric positive-definite three-dimensional spatial metric.
-
-The metric must not be restricted to scalar scaling.
-
-Temporal geometry
-
-Local proper time should eventually be determined by a temporal metric component or lapse function.
-
-Simulation systems should consume local proper time rather than assuming that coordinate time is equivalent to physical time.
-
-Thermal geometry
-
-Temperature should eventually influence local material properties and spatial geometry.
-
-The precise constitutive relationship remains an open design decision.
-
-Field composition
-
-Multiple fields should be capable of contributing to the resulting environmental state.
-
-Field composition must be designed carefully to preserve mathematical validity, especially for metric tensors.
-
-Rendering Architecture
-
-Babylon.js currently operates in conventional Euclidean rendering coordinates.
-
-The eventual architecture should distinguish:
-
-Simulation coordinates.
-Physical geometry.
-Rendering coordinates.
-
-ThinInstanceRenderer should eventually receive transformed rendering matrices through a dedicated transformation interface.
-
-Important limitation:
-
-A single instance matrix cannot represent arbitrary nonlinear spatial deformation.
-
-Nonlinear geometry will eventually require vertex transformations, geometry subdivision, or shader-based deformation.
-
-Do not implement this prematurely.
-
-Existing Integration Considerations
-
-A previously identified potential integration issue concerns Forest.advance() and Tree.update().
-
-Tree.update() reportedly supports a hydrology argument, while Forest.advance() may not currently pass it.
-
-Verify the actual source code before modifying this behavior.
-
-Future forest updates should use locally accumulated proper time rather than assuming uniform biological time.
-
-Recommended Development Sequence
-Inspect existing source files and project conventions.
-Establish WorldFieldSystem.
-Implement SpatialLattice and interpolation.
-Implement the common field interfaces.
-Implement SpacetimeField and MetricTensor.
-Introduce temperature and material fields.
-Implement Euclidean and Poincare geometry models.
-Validate metric calculations and geodesic behavior.
-Integrate local proper time into biological simulation.
-Gradually extend the other simulation systems.
-Develop nonlinear rendering transformations.
-Current Development Status
-
-The architecture has been conceptually planned.
-
-The initial implementation has not yet been integrated into the actual project.
-
-No assumptions about the existing source tree should be treated as verified until the project files have been inspected.
-
-Instructions for Future ChatGPT Sessions
-
-When continuing this project:
-
-Read this document first.
-Ask for the current project archive if source files are not available.
-Inspect the existing architecture before modifying code.
-Preserve existing functionality.
-Provide complete files rather than isolated fragments when implementing new modules.
-Specify the exact destination path of every new file.
-Clearly identify modifications to existing files.
-Explain significant mathematical and architectural decisions.
-Avoid introducing arbitrary assumptions about physical behavior.
-Maintain this document as the project evolves.
-Project Philosophy
-
-The objective is not merely to simulate a conventional world with additional effects.
-
-The objective is to create a simulation environment in which geometry, time, matter, temperature, and physical behavior can become interconnected and variable.
-
-The architecture should be capable of expressing phenomena that are not yet fully conceived.
-
-Extensibility is a fundamental requirement, not an afterthought.
-
-2026-11-04 11:36AM update
-
-## WorldFieldSystem Implementation — Initial Version
-
-Implementation status: Initial architecture integrated into source.
-
-### New Directory
-
-src/world/fields/
-
-### Implemented Components
-
-- WorldField: common environmental field abstraction.
-- FieldRegistry: field registration and discovery.
-- FieldSampler: centralized field sampling.
-- SpatialLattice: three-dimensional storage and trilinear interpolation.
-- MetricTensor: symmetric positive-definite 3D metric.
-- SpacetimeField: spatial metric and temporal lapse.
-- TemperatureField: configurable temperature distribution.
-- MaterialField: geological material properties.
-- PhysicalProperties: shared physical property definitions.
-- WorldFieldSystem: central coordination interface.
-
-### Geometry Models
-
-- GeometryModel: common geometry interface.
-- EuclideanGeometry: conventional Euclidean geometry.
-- PoincareGeometry: three-dimensional hyperbolic ball model.
-- GeodesicSolver: initial numerical path-relaxation implementation.
-
-### Mathematical Decisions
-
-Metric tensors are represented using symmetric 3x3 matrices.
-
-Positive definiteness is validated through Cholesky decomposition.
-
-Metric interpolation uses Cholesky factors to preserve positive definiteness.
-
-The initial spacetime model uses:
-
-dτ = N(x,t) dt
-
-where N is the local temporal lapse function.
-
-The initial lapse is 1.0.
-
-The initial spatial geometry is Euclidean.
-
-The Poincare model uses negative constant curvature and a configurable ball radius.
-
-### Existing System Integration
-
-Forest initializes WorldFieldSystem using its existing TerrainSampler and GeologicalField.
-
-MaterialField consumes the existing GeologicalField rather than duplicating geological calculations.
-
-Forest.advance() now passes Hydrology to Tree.update(), restoring the previously identified integration.
-
-Existing rendering and simulation systems remain otherwise unchanged.
-
-### Current Limitations
-
-1. WorldFieldSystem is initialized but existing simulation systems have not yet migrated to consuming its fields.
-2. SpatialLattice is implemented as an independent storage abstraction and is not yet populated automatically.
-3. Temperature currently uses a configurable altitude lapse-rate model.
-4. Material properties are initial configurable estimates, not calibrated physical measurements.
-5. Temperature does not yet influence material properties or geometry.
-6. The geodesic solver is an initial numerical approximation, not a validated general-purpose solver.
-7. Temporal lapse currently does not influence biological aging.
-8. Poincare geometry is a mathematical simulation model and is not connected to Babylon.js rendering.
-9. Metric composition from multiple interacting fields remains unimplemented.
-
-### Recommended Next Development Steps
-
-1. Validate MetricTensor operations with automated numerical tests.
-2. Improve and validate geodesic energy minimization.
-3. Add SpatialLattice tests covering interpolation and boundaries.
-4. Implement field composition with mathematically valid metric operations.
-5. Introduce spatially varying metric providers.
-6. Develop temperature-dependent material constitutive relationships.
-7. Integrate local proper time into biological simulation.
-8. Introduce a dedicated simulation-coordinate to rendering-coordinate interface.
-9. Gradually migrate existing environmental systems to WorldFieldSystem.
-
-### Architectural Principle
-
-WorldFieldSystem is infrastructure, not an independent world simulation.
-
-Environmental systems remain independently responsible for their own simulation processes.
-
-The field infrastructure provides shared environmental information and mathematical relationships without imposing unnecessary dependencies between subsystems.
-
-2026-11-04 12:47 PM
-Current project tree:
-
-.
-├── assets
-│   └── 0_somnium_map_topographic.png
-├── index.html
-├── PROJECT-STATE.md
-└── src
-    ├── atmosphere
-    │   ├── cloud-generator.js
-    │   ├── cloud.js
-    │   ├── cloud-species.js
-    │   └── cloud-system.js
-    ├── core
-    │   ├── genetics.js
-    │   ├── noise.js
-    │   ├── random.js
-    │   └── species.js
-    ├── ecology
-    │   ├── forest.js
-    │   ├── tree-generator.js
-    │   └── tree.js
-    ├── environment
-    │   ├── environment.js
-    │   ├── spatial-grid.js
-    │   └── terrain.js
-    ├── geology
-    │   ├── geological-field.js
-    │   ├── geological-manager.js
-    │   ├── rock-generator.js
-    │   ├── rock-species.js
-    │   └── surface-deposit-system.js
-    ├── main.js
-    ├── rendering
-    │   ├── cloud-renderer.js
-    │   ├── rock-renderer.js
-    │   ├── surface-deposit-renderer.js
-    │   ├── thin-instance-renderer.js
-    │   └── tree-renderers.js
-    ├── scene
-    │   └── create-scene.js
-    ├── water
-    │   ├── hydrology.js
-    │   ├── rain-system.js
-    │   └── water-system.js
-    └── world
-        ├── fields
-        │   ├── field-registry.js
-        │   ├── field-sampler.js
-        │   ├── geometry
-        │   │   ├── euclidean-geometry.js
-        │   │   ├── geodesic-solver.js
-        │   │   ├── geometry-model.js
-        │   │   └── poincare-geometry.js
-        │   ├── material-field.js
-        │   ├── metric-tensor.js
-        │   ├── physical-properties.js
-        │   ├── spacetime-field.js
-        │   ├── spatial-lattice.js
-        │   ├── temperature-field.js
-        │   ├── world-field.js
-        │   └── world-field-system.js
-        ├── world-chunk.js
-        └── world-manager.js
-
-14 directories, 48 files

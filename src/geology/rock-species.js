@@ -115,6 +115,37 @@ const RockSpecies = {
         color: new BABYLON.Color3(0.22, 0.12, 0.48)
     },
 
+basalt: {
+    scale: 3.4,
+    recursionDepth: 3,
+    branchCount: 4,
+    scaleDecay: 0.58,
+    displacement: 0.78,
+    irregularity: 0.70,
+    hardness: 0.96,
+    cohesion: 0.94,
+    erosionRate: 0.0015,
+    fragmentation: 0.20,
+    soilContribution: 0.15,
+    verticalScale: 1.25,
+    color: new BABYLON.Color3(0.24, 0.23, 0.22)
+},
+
+sandstone: {
+    scale: 3.2,
+    recursionDepth: 3,
+    branchCount: 4,
+    scaleDecay: 0.62,
+    displacement: 0.72,
+    irregularity: 0.60,
+    hardness: 0.45,
+    cohesion: 0.40,
+    erosionRate: 0.009,
+    fragmentation: 0.50,
+    soilContribution: 0.35,
+    verticalScale: 0.85,
+    color: new BABYLON.Color3(0.65, 0.43, 0.29)
+},
 
 coal: {
     scale: 3.0,
