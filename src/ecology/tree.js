@@ -181,6 +181,13 @@ if (
     this.soilSampleTimer = 5.0;
 }
 
+	const optimalMoisture = this.species.optimalMoisture;
+
+
+	const droughtTolerance = this.species.droughtTolerance;
+
+
+	const waterloggingTolerance = this.species.waterloggingTolerance;
 
 if (hydrology && typeof hydrology.sampleSoil === "function") {
 	const soil = this.soilSample;
@@ -212,22 +219,10 @@ if (hydrology && typeof hydrology.sampleSoil === "function") {
             0.15,
             1.0
         );
-    }
-}
-
-    }
+	    }
+	}
 
 
-    const optimalMoisture =
-        this.species.optimalMoisture;
-
-
-    const droughtTolerance =
-        this.species.droughtTolerance;
-
-
-    const waterloggingTolerance =
-        this.species.waterloggingTolerance;
 
 
     // Growth is best near the species'

@@ -199,25 +199,20 @@ function terrainColor(height, slope, worldX, worldZ) {
         1
     );
 
-    let soil;
+const soilType = soilTypeAt(worldX, worldZ);
 
-    if (exposure > 0.78) {
-        soil = [0.43, 0.41, 0.37];
-    } else if (moisture > 0.78) {
-        soil = [0.19, 0.13, 0.085];
-    } else if (moisture > 0.57) {
-        soil = [0.35, 0.25, 0.16];
-    } else if (moisture > 0.40) {
-        soil = [0.52, 0.40, 0.29];
-    } else if (moisture > 0.22) {
-        soil = geology > 0.5
-            ? [0.48, 0.29, 0.21]
-            : [0.27, 0.19, 0.12];
-    } else {
-        soil = [0.76, 0.66, 0.46];
-    }
+const soilColors = {
+    clay:        [0.48, 0.29, 0.21],
+    sand:        [0.92, 0.73, 0.39],
+    fertileSoil: [0.43, 0.29, 0.18],
+    loam:        [0.35, 0.25, 0.16],
+    organic:     [0.19, 0.13, 0.085],
+    scree:       [0.43, 0.41, 0.37]
+};
 
-    let bedrock;
+let soil = soilColors[soilType];
+    
+let bedrock;
 
     if (geology < 0.28) {
         bedrock = [0.63, 0.60, 0.51];
@@ -594,4 +589,33 @@ self.onmessage = event => {
         }
     }
 };
+
+function soilTypeAt(worldX, worldZ) {
+    const t = terrain;
+
+    const u = clamp(
+        (worldX - t.minX) / t.worldSize,
+        0,
+        1
+    );
+
+    const v = clamp(
+        (worldZ - t.minZ) / t.worldSize,
+        0,
+        1
+    );
+
+    const mapValue = pixelValue(
+        u * (t.width - 1),
+        v * (t.height - 1)
+    );
+
+    if (mapValue < 0.18) return "clay";
+    if (mapValue < 0.38) return "sand";
+    if (mapValue < 0.58) return "fertileSoil";
+    if (mapValue < 0.76) return "loam";
+    if (mapValue < 0.90) return "organic";
+
+    return "scree";
+}
 

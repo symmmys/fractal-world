@@ -50,11 +50,13 @@ class CelestialSystem {
         this.twilight = 0;
         this.starVisibility = 1;
 
-        this.createSky();
-        this.createSun();
-        this.createMoon();
+	// Initialize rendering resources before the first update.
+this.createSky();
 
-        this.update(0);
+// Initialize the celestial simulation and shader uniforms.
+this.update(0);
+
+console.log("[CelestialSystem] Initialized.");
 
         console.log("[CelestialSystem] Initialized.");
     }
@@ -264,21 +266,34 @@ class CelestialSystem {
 
                 // Subtle lunar glow.
 
-                float moonDot = dot(
-                    direction,
-                    normalize(moonDirection)
-                );
+float moonDot = dot(
+    direction,
+    normalize(moonDirection)
+);
 
-                float moonGlow = pow(
-                    max(moonDot, 0.0),
-                    18.0
-                );
+float moonDisc = smoothstep(
+    0.99972,
+    0.99988,
+    moonDot
+);
 
-                sky += vec3(
-                    0.12, 0.16, 0.30
-                ) * moonGlow *
-                    starVisibility * 0.3;
+float moonGlow = pow(
+    max(moonDot, 0.0),
+    18.0
+);
 
+vec3 moonColor = vec3(0.78, 0.83, 0.96);
+
+sky += vec3(0.12, 0.16, 0.30)
+    * moonGlow
+    * starVisibility
+    * 0.3;
+
+sky = mix(
+    sky,
+    moonColor,
+    moonDisc * starVisibility
+);
                 gl_FragColor = vec4(sky, 1.0);
             }
         `;
@@ -337,7 +352,7 @@ class CelestialSystem {
 
         this.skyMesh.material = this.skyMaterial;
         this.skyMesh.isPickable = false;
-        this.skyMesh.infiniteDistance = true;
+        this.skyMesh.infiniteDistance = false;
         this.skyMesh.alwaysSelectAsActiveMesh = true;
 
         this.skyMesh.renderingGroupId = 0;
@@ -526,43 +541,24 @@ class CelestialSystem {
         // UPDATE SKY AND CELESTIAL POSITIONS
         // -------------------------------------
 
-        const camera = this.scene.activeCamera;
+const camera = this.scene.activeCamera;
 
-        if (camera) {
-            this.skyMesh.position.copyFrom(
-                camera.position
-            );
+if (camera) {
+    this.skyMesh.position.copyFrom(camera.position);
 
-            const sunPosition =
-                camera.position.add(
-                    this.sunDirection.scale(
-                        this.orbitDistance
-                    )
-                );
+    // Keep the sky inside the camera far plane.
+    const farPlane = camera.maxZ || 100000;
 
-            const moonPosition =
-                camera.position.add(
-                    this.moonDirection.scale(
-                        this.orbitDistance
-                    )
-                );
+    const effectiveRadius = Math.min(
+        this.skyRadius,
+        farPlane * 0.45
+    );
 
-            this.sunMesh.position.copyFrom(
-                sunPosition
-            );
+    const skyScale =
+        effectiveRadius / this.skyRadius;
 
-            this.moonMesh.position.copyFrom(
-                moonPosition
-            );
-
-            this.sunMesh.setEnabled(
-                vertical > -0.08
-            );
-
-            this.moonMesh.setEnabled(
-                vertical < 0.08
-            );
-        }
+    this.skyMesh.scaling.setAll(skyScale);
+}
 
         // -------------------------------------
         // UPDATE SKY SHADER
@@ -659,21 +655,26 @@ class CelestialSystem {
     // -----------------------------------------
     // CLEANUP
     // -----------------------------------------
-
-    dispose() {
+dispose() {
+    if (this.skyMesh) {
         this.skyMesh.dispose();
-        this.skyMaterial.dispose();
-
-        this.sunMesh.dispose();
-        this.moonMesh.dispose();
-
-        this.sunMaterial.dispose();
-        this.moonMaterial.dispose();
-
-        this.sunLight.dispose();
-        this.moonLight.dispose();
-        this.ambientLight.dispose();
     }
+
+    if (this.skyMaterial) {
+        this.skyMaterial.dispose();
+    }
+
+    // Retain compatibility if independent celestial
+    // meshes are reintroduced in a future implementation.
+    this.sunMesh?.dispose();
+    this.moonMesh?.dispose();
+    this.sunMaterial?.dispose();
+    this.moonMaterial?.dispose();
+
+    this.sunLight?.dispose();
+    this.moonLight?.dispose();
+    this.ambientLight?.dispose();
+}
 }
 
 export { CelestialSystem };

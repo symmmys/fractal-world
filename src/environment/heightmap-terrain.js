@@ -396,5 +396,49 @@ export class HeightmapTerrain {
         this.ready = false;
         this.diagnostics = null;
     }
+
+	sampleMapValue(x, z) {
+    if (!this.ready || !this.pixels) {
+        return null;
+    }
+
+    if (
+        x < this.min.x ||
+        x > this.max.x ||
+        z < this.min.z ||
+        z > this.max.z
+    ) {
+        return null;
+    }
+
+    const { u, v } = this.getNormalizedCoordinates(x, z);
+
+    const px = u * (this.width - 1);
+    const pz = v * (this.height - 1);
+
+    const x0 = Math.floor(px);
+    const z0 = Math.floor(pz);
+
+    const x1 = Math.min(x0 + 1, this.width - 1);
+    const z1 = Math.min(z0 + 1, this.height - 1);
+
+    const tx = px - x0;
+    const tz = pz - z0;
+
+    const a = BABYLON.Scalar.Lerp(
+        this.getPixelValue(x0, z0),
+        this.getPixelValue(x1, z0),
+        tx
+    );
+
+    const b = BABYLON.Scalar.Lerp(
+        this.getPixelValue(x0, z1),
+        this.getPixelValue(x1, z1),
+        tx
+    );
+
+    return BABYLON.Scalar.Lerp(a, b, tz);
+}
+
 }
 

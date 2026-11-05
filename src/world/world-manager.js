@@ -104,66 +104,80 @@ this.material.roughness = 1.0;
         );
     }
 
-    initializeWorker() {
-        if (typeof Worker === "undefined") {
-            console.warn(
-                "[WorldManager] Workers unavailable. Using fallback."
-            );
-            return;
-        }
+	initializeWorker() {
+    if (typeof Worker === "undefined") {
+        console.warn(
+            "[WorldManager] Workers unavailable. Using fallback."
+        );
+        return;
+    }
 
-        try {
-            this.worker = new Worker(
-                new URL("./terrain-mesh-worker.js", import.meta.url),
-                { type: "module" }
-            );
+    try {
+        this.worker = new Worker(
+            new URL("./terrain-mesh-worker.js", import.meta.url),
+            { type: "module" }
+        );
 
-            this.worker.onmessage = event => {
-                this.handleWorkerMessage(event.data);
-            };
+        this.worker.onmessage = event => {
+            const message = event.data;
 
-            this.worker.onerror = error => {
-                console.error(
-                    "[WorldManager] Worker error:",
-                    error
+            if (message.type === "ready") {
+                if (this.workerInitTimer) {
+                    clearTimeout(this.workerInitTimer);
+                    this.workerInitTimer = null;
+                }
+
+                this.workerReady = true;
+
+                console.log(
+                    "[WorldManager] Terrain worker ready."
                 );
 
-                this.worker.terminate();
-                this.worker = null;
-                this.workerReady = false;
-                this.workerBusy = false;
+                this.pumpWorker();
+                return;
+            }
 
-                this.processFallbackQueue();
-            };
+            this.handleWorkerMessage(message);
+        };
 
-            // Give the worker its own copy of the heightmap.
-            const pixels = this.terrain.pixels.slice();
+        this.worker.onerror = error => {
+            this.failWorker(error);
+        };
 
-            this.worker.postMessage({
-                type: "init",
-                terrain: {
-                    width: this.terrain.width,
-                    height: this.terrain.height,
-                    worldSize: this.terrain.worldSize,
-                    minX: this.terrain.min.x,
-                    minZ: this.terrain.min.z,
-                    minHeight: this.terrain.minHeight,
-                    maxHeight: this.terrain.maxHeight,
-                    heightChannel:
-                        this.terrain.heightChannel ?? "average"
-                },
-                pixels: pixels.buffer
-            }, [pixels.buffer]);
+        this.worker.onmessageerror = error => {
+            this.failWorker(error);
+        };
 
-        } catch (error) {
-            console.warn(
-                "[WorldManager] Worker initialization failed:",
-                error
-            );
+        const pixels = this.terrain.pixels.slice();
 
-            this.worker = null;
-        }
+        this.worker.postMessage({
+            type: "init",
+            terrain: {
+                width: this.terrain.width,
+                height: this.terrain.height,
+                worldSize: this.terrain.worldSize,
+                minX: this.terrain.min.x,
+                minZ: this.terrain.min.z,
+                minHeight: this.terrain.minHeight,
+                maxHeight: this.terrain.maxHeight,
+                heightChannel:
+                    this.terrain.heightChannel ?? "average"
+            },
+            pixels: pixels.buffer
+        }, [pixels.buffer]);
+
+        this.workerInitTimer = setTimeout(() => {
+            if (!this.workerReady && this.worker) {
+                this.failWorker(
+                    "Worker initialization timed out."
+                );
+            }
+        }, 5000);
+
+    } catch (error) {
+        this.failWorker(error);
     }
+}
 
     handleWorkerMessage(message) {
         if (message.type === "ready") {
@@ -294,11 +308,11 @@ this.material.roughness = 1.0;
         });
     }
 
-	
-processFallbackQueue() {
+	processFallbackQueue() {
     if (
         this.fallbackScheduled ||
-        this.meshQueue.length === 0
+        this.meshQueue.length === 0 ||
+        !this.enabled
     ) {
         return;
     }
@@ -310,8 +324,6 @@ processFallbackQueue() {
 
         const job = this.meshQueue.shift();
 
-        this.stats.pendingMeshes = this.meshQueue.length;
-
         if (job) {
             const chunk = this.chunks.get(job.key);
 
@@ -320,14 +332,23 @@ processFallbackQueue() {
                 !chunk.disposed &&
                 chunk.revision === job.revision
             ) {
-                chunk.generateMesh(
-                    job.lod,
-                    this.material
-                );
+                try {
+                    chunk.generateMesh(
+                        job.lod,
+                        this.material
+                    );
+                } catch (error) {
+                    console.error(
+                        "[WorldManager] Synchronous terrain generation failed:",
+                        error
+                    );
+                }
             }
         }
 
+        this.stats.pendingMeshes = this.meshQueue.length;
         this.processFallbackQueue();
+
     }, 0);
 }
 
@@ -583,5 +604,46 @@ if (distance <= this.chunkSize * 8) return 2;
         this.stats.loaded = 0;
         this.stats.pendingMeshes = 0;
     }
+
+failWorker(reason) {
+    console.error(
+        "[WorldManager] Worker failure:",
+        reason
+    );
+
+    this.stats.workerErrors++;
+
+    if (this.workerInitTimer) {
+        clearTimeout(this.workerInitTimer);
+        this.workerInitTimer = null;
+    }
+
+    const failedTask = this.currentTask;
+    this.currentTask = null;
+
+    if (this.worker) {
+        this.worker.terminate();
+        this.worker = null;
+    }
+
+    this.workerReady = false;
+    this.workerBusy = false;
+
+    // Retry the outstanding task synchronously.
+    if (failedTask) {
+        const chunk = this.chunks.get(failedTask.key);
+
+        if (
+            chunk &&
+            !chunk.disposed &&
+            chunk.revision === failedTask.revision
+        ) {
+            this.meshQueue.unshift(failedTask);
+        }
+    }
+
+    this.stats.pendingMeshes = this.meshQueue.length;
+    this.processFallbackQueue();
+}
 }
 

@@ -40,62 +40,81 @@ export class WorldChunk {
         this.neighbors = neighbors;
     }
 
-    applyMeshData(data, lod, material) {
-        if (this.disposed) return;
+	
+applyMeshData(data, lod, material) {
+    if (this.disposed) return;
 
-        const vertexData = new BABYLON.VertexData();
+    const vertexData = new BABYLON.VertexData();
 
-        vertexData.positions = Array.from(data.positions);
-        vertexData.normals = Array.from(data.normals);
-        vertexData.colors = Array.from(data.colors);
-        vertexData.indices = Array.from(data.indices);
+    vertexData.positions = Array.from(data.positions);
+    vertexData.normals = Array.from(data.normals);
+    vertexData.colors = Array.from(data.colors);
+    vertexData.indices = Array.from(data.indices);
 
-        if (this.mesh) {
-            this.mesh.dispose();
-        }
+    if (this.mesh) {
+        this.mesh.dispose();
+    }
 
-        this.mesh = new BABYLON.Mesh(
-            `terrain_chunk_${this.x}_${this.z}`,
-            this.scene
+    this.mesh = new BABYLON.Mesh(
+        `terrain_chunk_${this.x}_${this.z}`,
+        this.scene
+    );
+
+    vertexData.applyToMesh(this.mesh, true);
+
+    this.mesh.material = material;
+
+    material.useVertexColors = true;
+    material.diffuseColor.set(1, 1, 1);
+
+    this.mesh.useVertexColors = true;
+    this.mesh.hasVertexAlpha = false;
+
+    if (
+        !this.mesh.isVerticesDataPresent(
+            BABYLON.VertexBuffer.ColorKind
+        )
+    ) {
+        console.error(
+            "[WorldChunk] Terrain vertex colors missing:",
+            this.x,
+            this.z
         );
+    }
 
-        vertexData.applyToMesh(this.mesh, true);
+    // IMPORTANT:
+    // Terrain must be pickable for architectural editing.
 
-        this.mesh.material = material;
+    this.mesh.isPickable = true;
 
-	material.useVertexColors = true;
-material.diffuseColor.set(1, 1, 1);
+    this.mesh.metadata = {
+        chunkX: this.x,
+        chunkZ: this.z,
+        lod,
 
-this.mesh.useVertexColors = true;
-this.mesh.hasVertexAlpha = false;
+        // Explicit identifier for editor terrain picking.
+        terrainChunk: true
+    };
 
-if (!this.mesh.isVerticesDataPresent(
-    BABYLON.VertexBuffer.ColorKind
-)) {
-    console.error(
-        "[WorldChunk] Terrain vertex colors missing:",
-        this.x,
-        this.z
+    // Apply existing spatial transformation.
+    this.scene.metadata?.geometryRenderer?.applyMesh(
+        this.mesh
+    );
+
+    this.lod = lod;
+    this.loaded = true;
+
+    console.log(
+        "[WorldChunk] Terrain mesh ready for picking:",
+        {
+            name: this.mesh.name,
+            pickable: this.mesh.isPickable,
+            terrainChunk: this.mesh.metadata.terrainChunk,
+            vertices: this.mesh.getTotalVertices()
+        }
     );
 }
 
-        this.mesh.isPickable = false;
-
-        this.mesh.metadata = {
-            chunkX: this.x,
-            chunkZ: this.z,
-            lod
-        };
-	// Apply the active spatial geometry after
-// the authoritative terrain mesh is created.
-
-this.scene.metadata?.geometryRenderer?.applyMesh(
-    this.mesh
-);
-
-        this.lod = lod;
-        this.loaded = true;
-    }
 
     generateMesh(lod, material) {
         if (this.disposed) return;

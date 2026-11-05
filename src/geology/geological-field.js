@@ -260,29 +260,34 @@ class GeologicalField {
             (1 - moisture) * 0.10
         );
 
-        // Surface soil classification.
-        let surfaceSoil;
+	// -----------------------------------------
+// TOPOGRAPHIC SOIL DISTRIBUTION
+// -----------------------------------------
 
-        if (exposure > 0.78) {
-            surfaceSoil = "scree";
-        } else if (moisture > 0.78) {
-            surfaceSoil = "organic";
-        } else if (moisture > 0.57) {
-            surfaceSoil = "loam";
-        } else if (moisture > 0.40) {
-            surfaceSoil = "silt";
-        } else if (moisture > 0.22) {
-            surfaceSoil = geologyNoise > 0.5
-                ? "clay"
-                : "fertileSoil";
-        } else {
-            surfaceSoil = "sand";
-        }
+const mapValue = this.terrain.sampleMapValue(x, z);
 
-        // Steep slopes progressively lose their soil cover.
-        if (slope > 24 && exposure > 0.55) {
-            surfaceSoil = "scree";
-        }
+let surfaceSoil;
+
+if (mapValue === null) {
+    surfaceSoil = "loam";
+} else if (mapValue < 0.18) {
+    surfaceSoil = "clay";
+} else if (mapValue < 0.38) {
+    surfaceSoil = "sand";
+} else if (mapValue < 0.58) {
+    surfaceSoil = "fertileSoil";
+} else if (mapValue < 0.76) {
+    surfaceSoil = "loam";
+} else if (mapValue < 0.90) {
+    surfaceSoil = "organic";
+} else {
+    surfaceSoil = "scree";
+}
+
+// Local geology still controls exposed bedrock.
+if (exposure > 0.88 || (slope > 32 && exposure > 0.65)) {
+    surfaceSoil = "scree";
+}
 
         const surface = MATERIALS[surfaceSoil];
         const bedrock = MATERIALS[bedrockType];

@@ -1,20 +1,20 @@
+
 class MainMenu {
     constructor(gameManager) {
         this.gameManager = gameManager;
         this.container = null;
 
         this.create();
-        this.unsubscribe =
-            gameManager.onModeChanged(mode => {
-                this.update(mode);
-            });
+
+        this.unsubscribe = gameManager.onModeChanged(
+            mode => this.update(mode)
+        );
 
         this.update(gameManager.mode);
     }
 
     create() {
         this.container = document.createElement("div");
-
         this.container.id = "somnium-game-ui";
 
         Object.assign(this.container.style, {
@@ -48,24 +48,24 @@ class MainMenu {
                     display: none;
                     justify-content: center;
                     align-items: center;
-                    background: rgba(5, 12, 20, 0.94);
+                    background: rgba(5,12,20,0.94);
                     pointer-events: auto;
                     text-align: center;
                 }
 
                 .somnium-panel {
-                    width: min(680px, 90%);
+                    width: min(760px, 90%);
                 }
 
                 .somnium-options {
                     display: grid;
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    grid-template-columns: repeat(2,minmax(0,1fr));
                     gap: 16px;
                     margin-top: 30px;
                 }
 
                 .somnium-options button {
-                    min-height: 145px;
+                    min-height: 125px;
                 }
 
                 .somnium-options small {
@@ -83,7 +83,7 @@ class MainMenu {
                     pointer-events: auto;
                 }
 
-                @media(max-width: 520px) {
+                @media(max-width:520px) {
                     .somnium-options {
                         grid-template-columns: 1fr;
                     }
@@ -110,6 +110,11 @@ class MainMenu {
                             <strong>FLIGHT SIMULATOR</strong>
                             <small>Explore freely from above</small>
                         </button>
+
+                        <button id="somnium-play-editor">
+                            <strong>BUILDING EDITOR</strong>
+                            <small>Design and position architecture</small>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -117,14 +122,8 @@ class MainMenu {
             <div id="somnium-pause" class="somnium-overlay">
                 <div class="somnium-panel">
                     <h1>PAUSED</h1>
-
-                    <button id="somnium-resume">
-                        RESUME
-                    </button>
-
-                    <button id="somnium-return">
-                        MAIN MENU
-                    </button>
+                    <button id="somnium-resume">RESUME</button>
+                    <button id="somnium-return">MAIN MENU</button>
                 </div>
             </div>
 
@@ -142,39 +141,31 @@ class MainMenu {
 
         this.container.querySelector(
             "#somnium-play-character"
-        ).onclick = () => {
-            this.gameManager.startThirdPerson();
-        };
+        ).onclick = () => this.gameManager.startThirdPerson();
 
         this.container.querySelector(
             "#somnium-play-flight"
-        ).onclick = () => {
-            this.gameManager.startFlight();
-        };
+        ).onclick = () => this.gameManager.startFlight();
+
+        this.container.querySelector(
+            "#somnium-play-editor"
+        ).onclick = () => this.gameManager.startEditor();
 
         this.container.querySelector(
             "#somnium-switch"
-        ).onclick = () => {
-            this.gameManager.togglePerspective();
-        };
+        ).onclick = () => this.gameManager.togglePerspective();
 
         this.container.querySelector(
             "#somnium-pause-button"
-        ).onclick = () => {
-            this.gameManager.pause();
-        };
+        ).onclick = () => this.gameManager.pause();
 
         this.container.querySelector(
             "#somnium-resume"
-        ).onclick = () => {
-            this.gameManager.resume();
-        };
+        ).onclick = () => this.gameManager.resume();
 
         this.container.querySelector(
             "#somnium-return"
-        ).onclick = () => {
-            this.gameManager.returnToMenu();
-        };
+        ).onclick = () => this.gameManager.returnToMenu();
     }
 
     update(mode) {
@@ -197,3 +188,4 @@ class MainMenu {
 }
 
 export { MainMenu };
+

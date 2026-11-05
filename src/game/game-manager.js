@@ -1,3 +1,4 @@
+
 class GameManager {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -5,6 +6,7 @@ class GameManager {
 
         this.flightCamera = options.flightCamera;
         this.thirdPersonCamera = null;
+        this.editorCamera = null;
 
         this.playerController = null;
         this.characterCameraController = null;
@@ -34,7 +36,9 @@ class GameManager {
             }
 
             if (event.code === "Escape") {
-                if (
+                if (this.mode === "editor") {
+                    this.exitEditor();
+                } else if (
                     this.mode === "flight" ||
                     this.mode === "thirdPerson"
                 ) {
@@ -48,14 +52,18 @@ class GameManager {
         window.addEventListener("keydown", this.onKeyDown);
     }
 
-    registerThirdPerson(camera, playerController, cameraController) {
+    registerThirdPerson(camera, controller, cameraController) {
         this.thirdPersonCamera = camera;
-        this.playerController = playerController;
+        this.playerController = controller;
         this.characterCameraController = cameraController;
 
         camera.detachControl();
-
         this.applyMode();
+    }
+
+    registerEditor(camera) {
+        this.editorCamera = camera;
+        camera.detachControl();
     }
 
     setMode(mode) {
@@ -63,7 +71,8 @@ class GameManager {
             "menu",
             "flight",
             "thirdPerson",
-            "paused"
+            "paused",
+            "editor"
         ];
 
         if (!valid.includes(mode)) {
@@ -72,10 +81,13 @@ class GameManager {
 
         if (
             mode === "thirdPerson" &&
-            (!this.thirdPersonCamera ||
-             !this.playerController)
+            (!this.thirdPersonCamera || !this.playerController)
         ) {
             throw new Error("Third-person systems are not registered.");
+        }
+
+        if (mode === "editor" && !this.editorCamera) {
+            throw new Error("Editor camera is not registered.");
         }
 
         if (this.mode === mode) return;
@@ -100,27 +112,25 @@ class GameManager {
     applyMode() {
         this.flightCamera.detachControl();
         this.thirdPersonCamera?.detachControl();
+        this.editorCamera?.detachControl();
 
         this.playerController?.setEnabled(false);
-
         this.characterCameraController?.setEnabled(false);
 
         if (this.mode === "flight") {
             this.scene.activeCamera = this.flightCamera;
-
-            this.flightCamera.attachControl(
-                this.canvas,
-                true
-            );
+            this.flightCamera.attachControl(this.canvas, true);
         }
 
         if (this.mode === "thirdPerson") {
-            this.scene.activeCamera =
-                this.thirdPersonCamera;
-
+            this.scene.activeCamera = this.thirdPersonCamera;
             this.playerController.setEnabled(true);
-
             this.characterCameraController.setEnabled(true);
+        }
+
+        if (this.mode === "editor") {
+            this.scene.activeCamera = this.editorCamera;
+            this.editorCamera.attachControl(this.canvas, true);
         }
 
         if (this.mode === "menu" || this.mode === "paused") {
@@ -134,6 +144,16 @@ class GameManager {
 
     startThirdPerson() {
         this.setMode("thirdPerson");
+    }
+
+    startEditor() {
+        this.setMode("editor");
+    }
+
+    exitEditor() {
+        if (this.mode !== "editor") return;
+
+        this.setMode(this.resumeMode);
     }
 
     togglePerspective() {
@@ -166,7 +186,6 @@ class GameManager {
 
     onModeChanged(callback) {
         this.callbacks.add(callback);
-
         return () => this.callbacks.delete(callback);
     }
 
@@ -182,16 +201,15 @@ class GameManager {
 
         this.disposed = true;
 
-        window.removeEventListener(
-            "keydown",
-            this.onKeyDown
-        );
+        window.removeEventListener("keydown", this.onKeyDown);
 
         this.flightCamera.detachControl();
         this.thirdPersonCamera?.detachControl();
+        this.editorCamera?.detachControl();
 
         this.callbacks.clear();
     }
 }
 
 export { GameManager };
+

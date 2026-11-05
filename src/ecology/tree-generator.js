@@ -280,7 +280,6 @@ if (ageFactor < 0.2) {
 }
 
         // Branch complexity increases with age
-//
 let maxDepth =
     ageFactor < 0.2 ? 0 :
     ageFactor < 0.5 ? 1 :

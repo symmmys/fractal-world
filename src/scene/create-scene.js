@@ -20,6 +20,11 @@ import { PlayerController } from "../game/player-controller.js";
 import { CharacterCameraController } from "../game/camera-controller.js";
 import { MainMenu } from "../ui/main-menu.js";
 import { CelestialSystem } from "../environment/celestial-system.js";
+import { WorldPersistence } from "../world/persistence/world-persistence.js";
+import { WorldSession } from "../world/persistence/world-session.js";
+import { WorldLibraryUI } from "../world/persistence/world-library-ui.js";
+import { BuildingSystem } from "../buildings/building-system.js";
+import { BuildingEditor } from "../editor/building-editor.js";
 
 
 async function createScene(engine, canvas) {
@@ -117,6 +122,24 @@ scene.metadata = {
         scene,
         spatialTransform
     );
+
+const buildingSystem = new BuildingSystem(
+    scene,
+    geometryRenderer,
+    { terrain }
+);
+
+const buildingEditor = new BuildingEditor(
+    scene,
+    buildingSystem,
+    spatialTransform
+);
+
+scene.metadata = {
+    ...(scene.metadata || {}),
+    buildingSystem,
+    buildingEditor
+};
 
     const geometryShaderManager =
         new GeometryShaderManager(
@@ -241,6 +264,8 @@ scene.metadata = {
             flightCamera: camera
         }
     );
+
+	buildingEditor.setGameManager(gameManager);
 
     gameManager.registerThirdPerson(
         thirdPersonCamera,
@@ -408,6 +433,69 @@ console.log(
         }
     );
 
+// -----------------------------------------
+// PERSISTENT WORLD LIBRARY
+// -----------------------------------------
+
+const worldPersistence = new WorldPersistence();
+
+await worldPersistence.open();
+
+const worldSession = new WorldSession(ecology);
+
+let activeWorld = null;
+let simulationElapsed = 0;
+
+const worldLibrary = new WorldLibraryUI(
+    worldPersistence,
+    {
+
+onLoad: async world => {
+    const result = worldSession.restore(world);
+
+    buildingSystem.restoreWorld(world);
+
+    activeWorld = world;
+    simulationElapsed = result.elapsedTime;
+
+    geology.worldSeed = result.worldSeed;
+    clouds.worldSeed = result.worldSeed;
+    geology.field.seed = result.worldSeed;
+
+    geology.records.clear();
+    geology.activeChunks.clear();
+
+    for (const renderer of Object.values(geology.renderers)) {
+        renderer.clear();
+        renderer.update();
+    }
+
+    clouds.records.clear();
+    clouds.activeChunks.clear();
+    clouds.renderer.clear();
+    clouds.renderer.update();
+
+    ecology.renderDirty = true;
+
+    console.log("[World] Loaded:", world.metadata.name, result);
+},
+
+onCapture: async world => {
+    worldSession.capture(world, simulationElapsed);
+    buildingSystem.captureWorld(world);
+}
+
+
+    }
+);
+
+scene.metadata = {
+    ...(scene.metadata || {}),
+    worldPersistence,
+    worldSession,
+    worldLibrary
+};
+
     console.log("[Scene] Environmental systems connected.");
 
     // -----------------------------------------
@@ -421,6 +509,11 @@ console.log(
             engine.getDeltaTime() / 1000,
             0.1
         );
+
+	if (activeWorld) {
+		simulationElapsed += deltaSeconds;
+	}
+	
 	celestial.update(deltaSeconds);
 
         graphics.update(deltaSeconds);
@@ -593,6 +686,14 @@ console.log(
         geometryShaderManager.dispose();
         hyperbolicCamera.dispose();
 	celestial.dispose();
+
+
+	buildingEditor.dispose();
+	buildingSystem.dispose();
+
+
+	worldLibrary.dispose();
+	worldPersistence.close();
     });
 
     // -----------------------------------------
